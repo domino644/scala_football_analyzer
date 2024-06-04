@@ -101,7 +101,7 @@ class FootballAnalyzer (
             case Some(df) =>
 
                 val passEventsDf = df.filter(col("type.name") === "Pass")
-                passEventsDf.show()
+
 
                 val passCountAndAccuracyDf = passEventsDf.groupBy(
                         col("team.name").as("team_name") ,
@@ -109,7 +109,7 @@ class FootballAnalyzer (
                     )
                     .agg(
                         count("*").as("total_passes"),
-                        count(when(col("pass.outcome.name").isNull, 1)).as("accurate_passes")
+                        count(when(col("pass.outcome.name").isNull , 1)).as("accurate_passes")
                     ).withColumn("pass_accuracy",
                     round(col("accurate_passes") / col("total_passes") * 100))
                     .orderBy(col("team_name"), col("pass_accuracy").desc)
@@ -123,11 +123,99 @@ class FootballAnalyzer (
     }
 
 
+    def get_exact_player_pass_information():Unit = {
+        gameDF match {
+            case Some(df) =>
+                val passEventsDF = df.filter(col("type.name") === "Pass")
+
+                val exactPassInfo = passEventsDF.groupBy(
+                    col("team.name").as("team_name"),
+                    col("player.name").as("player_name")
+                )
+                .agg(
+                    count("*").as("total_passes"),
+                    count(when(col("pass.outcome.name").isNull, 1)).as("accurate_passes"),
+                    count(when(col("pass.outcome.name").isNull && col("pass.body_part.name") === "Drop Kick", 1)).as("accurate_drop_kick_passes"),
+                    count(when(col("pass.body_part.name") === "Drop Kick", 1)).as("total_drop_kick_passes"),
+                    count(when(col("pass.outcome.name").isNull && col("pass.body_part.name") === "Head", 1)).as("accurate_head_passes"),
+                    count(when(col("pass.body_part.name") === "Head", 1)).as("total_head_passes"),
+                    count(when(col("pass.outcome.name").isNull && col("pass.body_part.name") === "Keeper Arm", 1)).as("accurate_keeper_arm_passes"),
+                    count(when(col("pass.body_part.name") === "Keeper Arm", 1)).as("total_keeper_arm_passes"),
+                    count(when(col("pass.outcome.name").isNull && col("pass.body_part.name") === "Left Foot", 1)).as("accurate_left_foot_passes"),
+                    count(when(col("pass.body_part.name") === "Left Foot", 1)).as("total_left_foot_passes"),
+                    count(when(col("pass.outcome.name").isNull && col("pass.body_part.name") === "Right Foot", 1)).as("accurate_right_foot_passes"),
+                    count(when(col("pass.body_part.name") === "Right Foot", 1)).as("total_right_foot_passes"),
+                    count(when(col("pass.outcome.name").isNull && col("pass.body_part.name") === "Other", 1)).as("accurate_other_body_part_passes"),
+                    count(when(col("pass.body_part.name") === "Other", 1)).as("total_other_body_part_passes"),
+                    count(when(col("pass.outcome.name").isNull && col("pass.body_part.name") === "No Touch", 1)).as("accurate_no_touch_passes"),
+                    count(when(col("pass.body_part.name") === "No Touch", 1)).as("total_no_touch_passes"),
+                    count(when(col("pass.outcome.name").isNull && col("pass.type.name") === "Throw-in", 1)).as("accurate_throw_in_passes"),
+                    count(when(col("pass.type.name") === "Throw-in", 1)).as("total_throw_in_passes"),
+                    count(when(col("pass.outcome.name").isNull && col("pass.body_part.name").isNull && col("pass.type.name") === "Recovery", 1)).as("accurate_recovery_passes"),
+                    count(when(col("pass.type.name") === "Recovery" && col("pass.body_part.name").isNull, 1)).as("total_recovery_passes")
+                )
+                    .withColumn("pass_accuracy", round(col("accurate_passes") / col("total_passes") * 100))
+                    .withColumn("drop_kick_passes_accuracy", coalesce(round(col("accurate_drop_kick_passes") / col("total_drop_kick_passes") * 100), lit(0)))
+                    .withColumn("head_passes_accuracy", coalesce(round(col("accurate_head_passes") / col("total_head_passes") * 100),lit(0)))
+                    .withColumn("keeper_arm_passes_accuracy", coalesce(round(col("accurate_keeper_arm_passes") / col("total_keeper_arm_passes") * 100), lit(0)))
+                    .withColumn("left_foot_passes_accuracy", coalesce(round(col("accurate_left_foot_passes") / col("total_left_foot_passes") * 100), lit(0)))
+                    .withColumn("right_foot_passes_accuracy", coalesce(round(col("accurate_right_foot_passes") / col("total_right_foot_passes") * 100), lit(0)))
+                    .withColumn("other_body_part_passes_accuracy", coalesce(round(col("accurate_other_body_part_passes") / col("total_other_body_part_passes") * 100), lit(0)))
+                    .withColumn("no_touch_passes_accuracy", coalesce(round(col("accurate_no_touch_passes") / col("total_no_touch_passes") * 100), lit(0)))
+                    .withColumn("throw_in_passes_accuracy", coalesce(round(col("accurate_throw_in_passes") / col("total_throw_in_passes") * 100), lit(0)))
+                    .withColumn("recovery_passes_accuracy", coalesce(round(col("accurate_recovery_passes") / col("total_recovery_passes") * 100), lit(0)))
+
+                    .select(
+                        col("team_name"),
+                        col("player_name"),
+                        col("accurate_passes"),
+                        col("total_passes"),
+                        col("pass_accuracy"),
+                        col("accurate_drop_kick_passes"),
+                        col("total_drop_kick_passes"),
+                        col("drop_kick_passes_accuracy"),
+                        col("accurate_head_passes"),
+                        col("total_head_passes"),
+                        col("head_passes_accuracy"),
+                        col("accurate_keeper_arm_passes"),
+                        col("total_keeper_arm_passes"),
+                        col("keeper_arm_passes_accuracy"),
+                        col("accurate_left_foot_passes"),
+                        col("total_left_foot_passes"),
+                        col("left_foot_passes_accuracy"),
+                        col("accurate_right_foot_passes"),
+                        col("total_right_foot_passes"),
+                        col("right_foot_passes_accuracy"),
+                        col("accurate_other_body_part_passes"),
+                        col("total_other_body_part_passes"),
+                        col("other_body_part_passes_accuracy"),
+                        col("accurate_no_touch_passes"),
+                        col("total_no_touch_passes"),
+                        col("no_touch_passes_accuracy"),
+                        col("accurate_throw_in_passes"),
+                        col("total_throw_in_passes"),
+                        col("throw_in_passes_accuracy"),
+                        col("accurate_recovery_passes"),
+                        col("total_recovery_passes"),
+                        col("recovery_passes_accuracy")
+                    )
+
+                    .orderBy(col("team_name"), col("pass_accuracy").desc)
+
+                exactPassInfo.show(30, truncate = false)
+
+            case None => println("DataFrame is not initialized")
+
+
+        }
+    }
+
+
     def get_player_shots_number_and_accuracy():Unit = {
         gameDF match{
             case Some(df) =>
                 val shotsEventsDF = df.filter(col("type.name") === "Shot")
-                shotsEventsDF.show()
+
 
                 val shotCountAndAccuracyDf = shotsEventsDF.groupBy(
                     col("team.name").as("team_name"),
@@ -147,6 +235,128 @@ class FootballAnalyzer (
                 shotCountAndAccuracyDf.show(truncate = false)
 
             case None => println("DataFrame is not initialized")
+        }
+    }
+
+    def get_player_total_time_whit_ball():Unit ={
+        gameDF match {
+            case Some(df) =>
+                val carryEventsDF = df.filter(col("type.name") === "Carry")
+
+                val ballCarryTimeDF = carryEventsDF.groupBy(
+                    col("team.name").as("team_name"),
+                    col("player.name").as("player_name")
+                )
+                .agg(
+                    round(sum(col("duration"))/60, 2).as("total_time_with_ball")
+                )
+                .orderBy(col("team_name"), col("total_time_with_ball").desc)
+
+                ballCarryTimeDF.show(30, truncate = false)
+
+            case None => println("DataFrame is not initialized")
+        }
+
+    }
+
+
+    def get_player_dribble_number_and_win_ratio():Unit= {
+        gameDF match  {
+            case Some(df) =>
+                val dribbleEventsDF = df.filter(col("type.name") === "Dribble")
+
+                val dribbleCountAndRatio = dribbleEventsDF.groupBy(
+                    col("team.name").as("team_name"),
+                    col("player.name").as("player_name")
+                )
+                .agg(
+
+                    count(when(col("dribble.outcome.name") === "Complete", 1)).as("successful_dribbles"),
+                    count("*").as("total_dribbles"),
+
+                )
+                .withColumn("dribbles_win_ratio", round(col("successful_dribbles") / col("total_dribbles")*100))
+                .orderBy(col("team_name"), col("dribbles_win_ratio").desc)
+
+                dribbleCountAndRatio.show(30, truncate = false)
+
+            case None => println("DataFrame is not initialized")
+
+        }
+    }
+
+
+    def get_player_ball_recovery_number_and_ratio():Unit = {
+        gameDF match {
+            case Some(df) =>
+                val recoveriesEventsDF = df.filter(col("type.name") === "Ball Recovery")
+
+                val recoveriesCountAndRatio = recoveriesEventsDF.groupBy(
+                    col("team.name").as("team_name"),
+                    col("player.name").as("player_name")
+                )
+                .agg(
+                    count(when(col("ball_recovery.recovery_failure").isNull, 1)).as("successful_ball_recoveries"),
+                    count("*").as("total_ball_recoveries")
+                )
+                .withColumn("ball_recovery_ratio", round(col("successful_ball_recoveries")/col("total_ball_recoveries")*100))
+                .orderBy(col("team_name"), col("ball_recovery_ratio").desc)
+
+                recoveriesCountAndRatio.show(30, truncate = false)
+
+
+            case None => println("DataFrame is not initialized")
+        }
+    }
+
+    //TODO Add column if not exist handling
+    def get_player_block_count_and_ratio():Unit = {
+
+        gameDF match{
+            case Some(df) =>
+
+                val blocksEventsDF = df.filter(col("type.name") === "Block")
+
+                val blockPerTypeCount = blocksEventsDF.groupBy(
+                    col("team.name").as("team_name"),
+                    col("player.name").as("player_name")
+                )
+                    .agg(
+                        count("*").as("total_blocks"),
+                        count(when(col("block").isNull,1)).as("standard_blocks"),
+                        count(when(col("block.deflection").isNotNull,1)).as("deflection_blocks"),
+                        count(when(col("block.offensive").isNotNull,1)).as("offensive_blocks"),
+//                        count(when(col("block.save_block").isNotNull,1)).as("save_blocks"),
+//                        count(when(col("block.counterpress").isNotNull,1)).as("counterpress_blocks"),
+
+                    )
+                    .withColumn("standard_block_ratio", round(col("standard_blocks")/col("total_blocks")*100))
+                    .withColumn("deflection_block_ratio", round(col("deflection_blocks")/col("total_blocks")*100))
+                    .withColumn("offensive_block_ratio", round(col("offensive_blocks")/col("total_blocks")*100))
+//                    .withColumn("save_block_ratio", round(col("save_blocks")/col("total_blocks")))
+//                    .withColumn("counterpress_block_ratio", round(col("counterpress_block")/col("total_blocks")))
+
+                    .select(
+                        col("team_name"),
+                        col("player_name"),
+                        col("total_blocks"),
+                        col("standard_blocks"),
+                        col("standard_block_ratio"),
+                        col("deflection_blocks"),
+                        col("deflection_block_ratio"),
+                        col("offensive_blocks"),
+                        col("offensive_block_ratio"),
+//                        col("save_blocks"),
+//                        col("save_block_ratio"),
+//                        col("counterpress_blocks"),
+//                        col("counterpress_block_ratio")
+                    )
+                    .orderBy(col("team_name"), col("total_blocks").desc)
+
+                    blockPerTypeCount.show(30, truncate = false)
+
+            case None => println("DataFrame is not initialized")
+
         }
     }
 
@@ -179,7 +389,12 @@ object Main {
         val analyzer = new FootballAnalyzer(spark, url)
         analyzer.initializeDataFrame()
         analyzer.showDF()
+        analyzer.get_player_block_count_and_ratio()
+        analyzer.get_player_ball_recovery_number_and_ratio()
+        analyzer.get_player_dribble_number_and_win_ratio()
+        analyzer.get_player_total_time_whit_ball()
         analyzer.get_player_pass_number_and_accuracy()
+        analyzer.get_exact_player_pass_information()
         analyzer.get_player_shots_number_and_accuracy()
         analyzer.get_all_substitution()
         analyzer.getPlayersWithNumbersAndPositions()
