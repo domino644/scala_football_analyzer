@@ -1,8 +1,8 @@
 package agh.scala.footballanalyzer
 import org.apache.spark.sql
 import org.apache.spark.sql.functions._
+import org.apache.spark.sql.types.{StructField, StructType}
 import org.apache.spark.sql.{DataFrame, SparkSession}
-
 
 import scala.util.{Try, Using}
 import scala.io.Source
@@ -309,56 +309,95 @@ class FootballAnalyzer (
         }
     }
 
-    //TODO Add column if not exist handling
-    def get_player_block_count_and_ratio():Unit = {
-
-        gameDF match{
+    def get_player_block_count_and_ratio(): Unit = {
+        gameDF match {
             case Some(df) =>
-
                 val blocksEventsDF = df.filter(col("type.name") === "Block")
+
+
+
+                def nestedFieldExists(columnName: String): Boolean = {
+                    blocksEventsDF.schema.find(_.name == "block") match {
+                        case Some(StructField(_, ,StructType(fields), _, _)) =>
+                            fields.exists(_.name == columnName)
+                        case _ => false
+                    }
+                }
+
+                val deflectionBlockExists = nestedFieldExists("deflection")
+                val offensiveBlockExists = nestedFieldExists("offensive")
+                val saveBlockExists = nestedFieldExists("save_block")
+                val counterpressBlockExists = nestedFieldExists("counterpress")
+
+
+                var aggExprs = Seq(
+                    count("*").as("total_blocks"),
+                    count(when(col("block").isNull, 1)).as("standard_blocks")
+                )
+
+
+                if (deflectionBlockExists) {
+                    aggExprs :+= count(when(col("block.deflection").isNotNull, 1)).as("deflection_blocks")
+                }
+                if (offensiveBlockExists) {
+                    aggExprs :+= count(when(col("block.offensive").isNotNull, 1)).as("offensive_blocks")
+                }
+                if (saveBlockExists) {
+                    aggExprs :+= count(when(col("block.save_block").isNotNull, 1)).as("save_blocks")
+                }
+                if (counterpressBlockExists) {
+                    aggExprs :+= count(when(col("block.counterpress").isNotNull, 1)).as("counterpress_blocks")
+                }
+
 
                 val blockPerTypeCount = blocksEventsDF.groupBy(
                     col("team.name").as("team_name"),
                     col("player.name").as("player_name")
-                )
-                    .agg(
-                        count("*").as("total_blocks"),
-                        count(when(col("block").isNull,1)).as("standard_blocks"),
-                        count(when(col("block.deflection").isNotNull,1)).as("deflection_blocks"),
-                        count(when(col("block.offensive").isNotNull,1)).as("offensive_blocks"),
-//                        count(when(col("block.save_block").isNotNull,1)).as("save_blocks"),
-//                        count(when(col("block.counterpress").isNotNull,1)).as("counterpress_blocks"),
+                ).agg(aggExprs.head, aggExprs.tail: _*)
 
-                    )
-                    .withColumn("standard_block_ratio", round(col("standard_blocks")/col("total_blocks")*100))
-                    .withColumn("deflection_block_ratio", round(col("deflection_blocks")/col("total_blocks")*100))
-                    .withColumn("offensive_block_ratio", round(col("offensive_blocks")/col("total_blocks")*100))
-//                    .withColumn("save_block_ratio", round(col("save_blocks")/col("total_blocks")))
-//                    .withColumn("counterpress_block_ratio", round(col("counterpress_block")/col("total_blocks")))
 
-                    .select(
-                        col("team_name"),
-                        col("player_name"),
-                        col("total_blocks"),
-                        col("standard_blocks"),
-                        col("standard_block_ratio"),
-                        col("deflection_blocks"),
-                        col("deflection_block_ratio"),
-                        col("offensive_blocks"),
-                        col("offensive_block_ratio"),
-//                        col("save_blocks"),
-//                        col("save_block_ratio"),
-//                        col("counterpress_blocks"),
-//                        col("counterpress_block_ratio")
+                var withRatios = blockPerTypeCount
+                    .withColumn("standard_block_ratio", round(col("standard_blocks") / col("total_blocks") * 100))
+
+
+                if (deflectionBlockExists) {
+                    withRatios = withRatios.withColumn("deflection_block_ratio", round(col("deflection_blocks") / col("total_blocks") * 100))
+                }
+                if (offensiveBlockExists) {
+                    withRatios = withRatios.withColumn("offensive_block_ratio", round(col("offensive_blocks") / col("total_blocks") * 100))
+                }
+                if (saveBlockExists) {
+                    withRatios = withRatios.withColumn("save_block_ratio", round(col("save_blocks") / col("total_blocks") * 100))
+                }
+                if (counterpressBlockExists) {
+                    withRatios = withRatios.withColumn("counterpress_block_ratio", round(col("counterpress_blocks") / col("total_blocks") * 100))
+                }
+
+                val selectedColumns = Seq(
+                    col("team_name"),
+                    col("player_name"),
+                    col("total_blocks"),
+                    col("standard_blocks"),
+                    col("standard_block_ratio")
+                ) ++ (
+                    if (deflectionBlockExists) Seq(col("deflection_blocks"), col("deflection_block_ratio")) else Seq()
+                    ) ++ (
+                    if (offensiveBlockExists) Seq(col("offensive_blocks"), col("offensive_block_ratio")) else Seq()
+                    ) ++ (
+                    if (saveBlockExists) Seq(col("save_blocks"), col("save_block_ratio")) else Seq()
+                    ) ++ (
+                    if (counterpressBlockExists) Seq(col("counterpress_blocks"), col("counterpress_block_ratio")) else Seq()
                     )
+
+                val finalDF = withRatios.select(selectedColumns: _*)
                     .orderBy(col("team_name"), col("total_blocks").desc)
 
-                    blockPerTypeCount.show(30, truncate = false)
+                finalDF.show(30, truncate = false)
 
             case None => println("DataFrame is not initialized")
-
         }
     }
+
 
 
     def initializeDataFrame():Unit = {
