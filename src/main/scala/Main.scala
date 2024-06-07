@@ -36,6 +36,21 @@ class FootballAnalyzer (
 
     }
 
+
+
+    private def nestedFieldExists(dfSchema: StructType, parentField: String, nestedField: String): Boolean = {
+        dfSchema.find(_.name == parentField) match {
+            case Some(StructField(_, StructType(fields), _, _)) =>
+                fields.exists {
+                    case StructField(`nestedField`, _, _, _) => true
+                    case StructField(_, StructType(nestedFields), _, _) =>
+                        nestedFields.exists(_.name == nestedField)
+                    case _ => false
+                }
+            case _ => false
+        }
+    }
+
     def getPlayersWithNumbersAndPositions():Unit = {
 
         gameDF match{
@@ -313,21 +328,13 @@ class FootballAnalyzer (
         gameDF match {
             case Some(df) =>
                 val blocksEventsDF = df.filter(col("type.name") === "Block")
+                val blockEventsDFSchema = blocksEventsDF.schema
 
 
-
-                def nestedFieldExists(columnName: String): Boolean = {
-                    blocksEventsDF.schema.find(_.name == "block") match {
-                        case Some(StructField(_, ,StructType(fields), _, _)) =>
-                            fields.exists(_.name == columnName)
-                        case _ => false
-                    }
-                }
-
-                val deflectionBlockExists = nestedFieldExists("deflection")
-                val offensiveBlockExists = nestedFieldExists("offensive")
-                val saveBlockExists = nestedFieldExists("save_block")
-                val counterpressBlockExists = nestedFieldExists("counterpress")
+                val deflectionBlockExists = nestedFieldExists(blockEventsDFSchema,"block", "deflection")
+                val offensiveBlockExists = nestedFieldExists(blockEventsDFSchema, "block" , "offensive")
+                val saveBlockExists = nestedFieldExists(blockEventsDFSchema,"block","save_block")
+                val counterpressBlockExists = nestedFieldExists(blockEventsDFSchema,"block","counterpress")
 
 
                 var aggExprs = Seq(
@@ -399,6 +406,281 @@ class FootballAnalyzer (
     }
 
 
+    def get_player_fouls_count_and_ratio():Unit ={
+        gameDF match {
+            case Some(df) =>
+                val foulCommitedEventsDF = df.filter(col("type.name") === "Foul Committed")
+                val foulWonEventsDF = df.filter(col("type.name") === "Foul Won")
+
+                val foulCommitedEventsDFSchema = foulCommitedEventsDF.schema
+                val foulWonEventsDFSchema = foulWonEventsDF.schema
+
+                val sixSecondsFoulExist = nestedFieldExists(foulCommitedEventsDFSchema,"foul_committed","6 Seconds")
+                val backpassPickFoulExist = nestedFieldExists(foulCommitedEventsDFSchema, "foul_committed","Backpass Pick")
+                val dangerousPlayFoulExist = foulCommitedEventsDF.filter(col("foul_committed.type.name") === "Dangerous Play").count() > 0
+                val diveFoulExist = foulCommitedEventsDF.filter(col("foul_committed.type.name") === "Dive").count() > 0
+                val foulOutExist = foulCommitedEventsDF.filter(col("foul_committed.type.name") === "Foul Out").count() > 0
+                val handballFoulExist = foulCommitedEventsDF.filter(col("foul_committed.type.name") === "Handball").count() > 0
+                val counterpressFoulExist = nestedFieldExists(foulCommitedEventsDFSchema,"foul_committed","counterpress")
+                val committedOffensiveFoulExist = nestedFieldExists(foulCommitedEventsDFSchema,"foul_committed","offensive")
+                val committedAdvantageFoulExist = nestedFieldExists(foulCommitedEventsDFSchema, "foul_committed", "advantage")
+                val committedPenaltyFoulExist = nestedFieldExists(foulCommitedEventsDFSchema,"foul_committed","penalty")
+                val cardFoulExist = nestedFieldExists(foulCommitedEventsDFSchema,"foul_committed","card")
+
+
+
+                val wonDefensiveFoulExist = nestedFieldExists(foulWonEventsDFSchema,"foul_won","defensive")
+                val wonAdvantageFoulExist = nestedFieldExists(foulWonEventsDFSchema, "foul_won", "advantage")
+                val wonPenaltyFoulExist = nestedFieldExists(foulWonEventsDFSchema,"foul_won","penalty")
+
+
+
+                var aggCommittedFoulExpression = Seq(
+                    count("*").as("total_fouls_committed"),
+                    count(when(col("foul_committed").isNull, 1)).as("standard_fouls")
+                )
+
+                var aggWonFoulExpression = Seq(
+                    count("*").as("total_fouls_won"),
+                    count(when(col("foul_won").isNull, 1)).as("standard_fouls")
+                )
+
+                if(sixSecondsFoulExist){
+                    aggCommittedFoulExpression :+= count(when(col("foul_committed.type.name") === "6 Seconds", 1)).as("6_seconds_fouls")
+                }
+
+                if(backpassPickFoulExist){
+                    aggCommittedFoulExpression :+= count(when(col("foul_committed.type.name") === "Backpass Pick", 1)).as("backpass_pick_fouls")
+                }
+
+                if(dangerousPlayFoulExist){
+                    aggCommittedFoulExpression :+= count(when(col("foul_committed.type.name") === "Dangerous Play",1)).as("dangerous_play_fouls")
+                }
+
+                if(diveFoulExist){
+                    aggCommittedFoulExpression :+= count(when(col("foul_committed.type.name") === "Dive",1)).as("dive_fouls")
+                }
+
+                if(foulOutExist){
+                    aggCommittedFoulExpression :+= count(when(col("foul_committed.type.name") === "Foul Out",1)).as("fouls_out")
+                }
+
+                if(handballFoulExist){
+                    aggCommittedFoulExpression :+= count(when(col("foul_committed.type.name") === "Handball",1)).as("handball_fouls")
+                }
+
+                if(counterpressFoulExist){
+                    aggCommittedFoulExpression :+= count(when(col("foul_committed.counterpress").isNotNull, 1)).as("counterpress_fouls")
+                }
+
+                if(committedOffensiveFoulExist) {
+                    aggCommittedFoulExpression :+= count(when(col("foul_committed.offensive").isNotNull, 1)).as("offensive_fouls")
+                }
+
+                if(committedOffensiveFoulExist) {
+
+                    aggCommittedFoulExpression :+= count(when(col("foul_committed.advantage").isNotNull, 1)).as("advantage_fouls")
+                }
+
+                if(committedPenaltyFoulExist){
+                    aggCommittedFoulExpression :+= count(when(col("foul_committed.penalty").isNotNull, 1)).as("penalty_fouls")
+                }
+
+                if(cardFoulExist){
+                    aggCommittedFoulExpression :+= count(when(col("foul_committed.card").isNotNull, 1)).as("card_fouls")
+                }
+
+
+                if(wonAdvantageFoulExist){
+
+                    aggWonFoulExpression :+= count(when(col("foul_won.advantage").isNotNull, 1)).as("advantage_fouls")
+                }
+
+                if(wonDefensiveFoulExist){
+
+                    aggWonFoulExpression :+= count(when(col("foul_won.defensive").isNotNull, 1)).as("defensive_fouls")
+                }
+
+                if(wonPenaltyFoulExist){
+
+                    aggWonFoulExpression :+= count(when(col("foul_won.penalty").isNotNull, 1)).as("penalty_fouls")
+                }
+
+                val foulCommittedPerTypeCount = foulCommitedEventsDF.groupBy(
+                    col("team.name").as("team_name"),
+                    col("player.name").as("player_name")
+                ).agg(aggCommittedFoulExpression.head, aggCommittedFoulExpression.tail: _*)
+
+                val foulWonPerTypeCount = foulWonEventsDF.groupBy(
+                    col("team.name").as("team_name"),
+                    col("player.name").as("player_name")
+                ).agg(aggWonFoulExpression.head, aggWonFoulExpression.tail: _*)
+
+
+                var withCommittedFoulsRatios = foulCommittedPerTypeCount
+                    .withColumn("standard_foul_ratio", round(col("standard_fouls")/col("total_fouls_committed")*100,2))
+
+                if(sixSecondsFoulExist){
+
+                    withCommittedFoulsRatios = withCommittedFoulsRatios.withColumn("six_seconds_foul_ratio",round(col("six_seconds_fouls")/col("total_fouls_committed")*100,2))
+                }
+
+                if(backpassPickFoulExist){
+
+                    withCommittedFoulsRatios = withCommittedFoulsRatios.withColumn("backpass_pick_foul_ratio",round(col("backpass_pick_fouls")/col("total_fouls_committed")*100,2))
+                }
+
+                if(dangerousPlayFoulExist){
+
+                    withCommittedFoulsRatios = withCommittedFoulsRatios.withColumn("dangerous_play_foul_ratio",round(col("dangerous_play_fouls")/col("total_fouls_committed")*100,2))
+                }
+
+                if(diveFoulExist){
+
+                    withCommittedFoulsRatios = withCommittedFoulsRatios.withColumn("dive_foul_ratio",round(col("dive_fouls")/col("total_fouls_committed")*100,2))
+                }
+
+                if(foulOutExist){
+
+                    withCommittedFoulsRatios = withCommittedFoulsRatios.withColumn("foul_out_ratio",round(col("fouls_out")/col("total_fouls_committed")*100,2))
+                }
+
+                if(handballFoulExist){
+
+                    withCommittedFoulsRatios = withCommittedFoulsRatios.withColumn("handball_foul_ratio",round(col("handball_fouls")/col("total_fouls_committed")*100,2))
+                }
+
+                if(counterpressFoulExist){
+
+                    withCommittedFoulsRatios = withCommittedFoulsRatios.withColumn("counterpress_foul_ratio",round(col("counterpress_fouls")/col("total_fouls_committed")*100,2))
+                }
+
+                if(committedOffensiveFoulExist) {
+
+                    withCommittedFoulsRatios = withCommittedFoulsRatios.withColumn("offensive_foul_ratio",round(col("offensive_fouls")/col("total_fouls_committed")*100,2))
+                }
+
+                if(committedAdvantageFoulExist) {
+
+                    withCommittedFoulsRatios = withCommittedFoulsRatios.withColumn("advantage_foul_ratio",round(col("advantage_fouls")/col("total_fouls_committed")*100,2))
+                }
+
+                if(committedPenaltyFoulExist){
+
+                    withCommittedFoulsRatios = withCommittedFoulsRatios.withColumn("penalty_foul_ratio",round(col("penalty_fouls")/col("total_fouls_committed")*100,2))
+                }
+
+                if(cardFoulExist){
+
+                    withCommittedFoulsRatios = withCommittedFoulsRatios.withColumn("card_foul_ratio",round(col("card_fouls")/col("total_fouls_committed")*100,2))
+                }
+
+                var withWonFoulsRatio = foulWonPerTypeCount
+                    .withColumn("standard_foul_ratio", round(col("standard_fouls")/col("total_fouls_won")*100, 2))
+
+
+                if(wonDefensiveFoulExist){
+
+                    withWonFoulsRatio = withWonFoulsRatio.withColumn("defensive_foul_ratio", round(col("defensive_fouls")/col("total_fouls_won")*100, 2))
+                }
+
+
+                if(wonAdvantageFoulExist){
+
+                    withWonFoulsRatio = withWonFoulsRatio.withColumn("advantage_foul_ratio", round(col("advantage_fouls")/col("total_fouls_won")*100, 2))
+                }
+
+
+                if(wonPenaltyFoulExist){
+
+                    withWonFoulsRatio = withWonFoulsRatio.withColumn("penalty_foul_ratio", round(col("penalty_fouls")/col("total_fouls_won")*100, 2))
+                }
+
+
+                val selectedCommittedFoulsColumns = Seq(
+                    col("team_name"),
+                    col("player_name"),
+                    col("total_fouls_committed"),
+                    col("standard_fouls"),
+                    col("standard_foul_ratio")
+                ) ++ (
+                    if (sixSecondsFoulExist) Seq(col("six_seconds_fouls"), col("six_seconds_fouls_ratio")) else Seq()
+                    ) ++ (
+
+                    if (backpassPickFoulExist) Seq(col("backpass_pick_fouls"), col("backpass_pick_foul_ratio")) else Seq()
+
+                    ) ++ (
+
+                    if (dangerousPlayFoulExist) Seq(col("dangerous_play_fouls"), col("dangerous_play_foul_ratio")) else Seq()
+
+                    ) ++ (
+
+                    if (diveFoulExist) Seq(col("dive_fouls"), col("dive_fouls_ratio")) else Seq()
+
+                    )++ (
+
+                    if (foulOutExist) Seq(col("fouls_out"), col("fouls_out_ratio")) else Seq()
+
+                    )++ (
+
+                    if (handballFoulExist) Seq(col("handball_fouls"), col("handball_foul_ratio")) else Seq()
+
+                    )++ (
+
+                    if (counterpressFoulExist) Seq(col("counterpress_fouls"), col("counterpress_foul_ratio")) else Seq()
+
+                    )++ (
+
+                    if (committedOffensiveFoulExist) Seq(col("offensive_fouls"), col("offensive_foul_ratio")) else Seq()
+
+                    )++ (
+
+                    if (committedAdvantageFoulExist) Seq(col("advantage_fouls"), col("advantage_foul_ratio")) else Seq()
+
+                    )++ (
+
+                    if (committedPenaltyFoulExist) Seq(col("penalty_fouls"), col("penalty_foul_ratio")) else Seq()
+
+                    )++ (
+
+                    if (cardFoulExist) Seq(col("card_fouls"), col("card_foul_ratio")) else Seq()
+
+                    )
+
+                val selectedWonFoulsColumns = Seq(
+                    col("team_name"),
+                    col("player_name"),
+                    col("total_fouls_won"),
+                    col("standard_fouls"),
+                    col("standard_foul_ratio")
+                )++ (
+                    if (wonDefensiveFoulExist) Seq(col("defensive_fouls"), col("defensive_foul_ratio")) else Seq()
+
+                    ) ++ (
+
+                    if (wonAdvantageFoulExist) Seq(col("advantage_fouls"), col("advantage_foul_ratio")) else Seq()
+                    ) ++ (
+
+                    if (wonPenaltyFoulExist) Seq(col("penalty_fouls"), col("penalty_foul_ratio")) else Seq()
+
+                    )
+
+
+                val finalCommittedFoulsDF = withCommittedFoulsRatios.select(selectedCommittedFoulsColumns: _*)
+                    .orderBy(col("team_name"), col("total_fouls_committed").desc)
+
+                val finalWonFoulsDF = withWonFoulsRatio.select(selectedWonFoulsColumns: _*)
+                    .orderBy(col("team_name"), col("total_fouls_won").desc)
+
+                finalCommittedFoulsDF.show(30, truncate = false)
+                finalWonFoulsDF.show(30, truncate = false)
+
+            case None => println("DataFrame is not initialized")
+
+        }
+    }
+
+
 
     def initializeDataFrame():Unit = {
         gameDF = Some(getDFFromUrl)
@@ -410,7 +692,7 @@ class FootballAnalyzer (
         json match {
             case scala.util.Success(content) =>
 
-                 spark.read.json(Seq(content).toDS)
+                spark.read.json(Seq(content).toDS)
 
 
             case scala.util.Failure(exception) => println(s"Error occurred: ${exception.getMessage}")
@@ -428,6 +710,7 @@ object Main {
         val analyzer = new FootballAnalyzer(spark, url)
         analyzer.initializeDataFrame()
         analyzer.showDF()
+        analyzer.get_player_fouls_count_and_ratio()
         analyzer.get_player_block_count_and_ratio()
         analyzer.get_player_ball_recovery_number_and_ratio()
         analyzer.get_player_dribble_number_and_win_ratio()
