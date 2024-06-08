@@ -37,7 +37,6 @@ class FootballAnalyzer (
     }
 
 
-
     private def nestedFieldExists(dfSchema: StructType, parentField: String, nestedField: String): Boolean = {
         dfSchema.find(_.name == parentField) match {
             case Some(StructField(_, StructType(fields), _, _)) =>
@@ -681,6 +680,45 @@ class FootballAnalyzer (
     }
 
 
+    def get_players_positions_count(): Unit = {
+        gameDF match {
+            case Some(df) => {
+
+                val playerPitchLocationDF = df.select(
+                        col("team.name").as("team_name"),
+                        col("player.name").as("player_name"),
+                        col("location")
+
+                    ).where(
+                        col("team_name").isNotNull &&
+                        col("player_name").isNotNull &&
+                        col("location").isNotNull
+                    )
+
+                    .withColumn("player_location", array(
+                        round(col("location")(0)),
+                        round(col("location")(1))
+                    )
+                    )
+                    .groupBy(
+                        col("team_name"),
+                        col("player_name"),
+                        col("player_location")
+                    ).agg(
+                        count("*").as("player_pitch_location_count")
+                    ).orderBy(
+                        col("team_name"),
+                        col("player_name"),
+                        col("player_pitch_location_count").desc
+                    )
+
+                playerPitchLocationDF.show(Int.MaxValue, truncate = false)
+            }
+            case None => println("DataFrame is not initialized")
+        }
+    }
+
+
 
     def initializeDataFrame():Unit = {
         gameDF = Some(getDFFromUrl)
@@ -710,6 +748,7 @@ object Main {
         val analyzer = new FootballAnalyzer(spark, url)
         analyzer.initializeDataFrame()
         analyzer.showDF()
+        analyzer.get_players_positions_count()
         analyzer.get_player_fouls_count_and_ratio()
         analyzer.get_player_block_count_and_ratio()
         analyzer.get_player_ball_recovery_number_and_ratio()
