@@ -1,21 +1,22 @@
 package agh.scala.footballanalyzer
 package classes
 
-import org.apache.spark.sql
+import objects.DataLoader
 import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
 import org.apache.spark.sql.functions.{array, coalesce, col, collect_list, concat_ws, count, explode, expr, lit, round, sum, when}
 import org.apache.spark.sql.types.{StructField, StructType}
 
-import scala.io.Source
-import scala.util.{Try, Using}
+class FootballAnalyzer(
+                        val spark: SparkSession,
+                      ) {
 
-class FootballAnalyzer (
-                         val spark: SparkSession,
-                         val url:String,
-                       ){
   import spark.implicits._
+
   private var gameDF: Option[DataFrame] = None
 
+  def initializeDataFrame(url: String): Unit = {
+    gameDF = Some(spark.read.json(Seq(DataLoader.fromURLAsString(url)).toDS()))
+  }
 
   private def nestedFieldExists(dfSchema: StructType, parentField: String, nestedField: String): Boolean = {
     dfSchema.find(_.name == parentField) match {
@@ -30,9 +31,9 @@ class FootballAnalyzer (
     }
   }
 
-  def getPlayersWithNumbersAndPositions():Option[Dataset[Row]] = {
+  def getPlayersWithNumbersAndPositions(): Option[Dataset[Row]] = {
 
-    gameDF match{
+    gameDF match {
       case Some(df) =>
         val selectedDF = df.select($"team.name".as("Team name"), explode($"tactics.lineup").as("lineup"))
 
@@ -58,8 +59,8 @@ class FootballAnalyzer (
 
   }
 
-  def getAllSubstitution():Option[Dataset[Row]] = {
-    gameDF match{
+  def getAllSubstitution(): Option[Dataset[Row]] = {
+    gameDF match {
       case Some(df) =>
         val selectedDF = df.select(
           $"team.name".as("Team_name"),
@@ -72,7 +73,6 @@ class FootballAnalyzer (
 
 
         ).where("Substitution is not NULL")
-
 
 
         val timeFormattedDF = selectedDF
@@ -89,8 +89,7 @@ class FootballAnalyzer (
     }
   }
 
-
-  def getPlayerPassNumberAndAccuracy():Option[Dataset[Row]] = {
+  def getPlayerPassNumberAndAccuracy(): Option[Dataset[Row]] = {
     gameDF match {
       case Some(df) =>
 
@@ -98,12 +97,12 @@ class FootballAnalyzer (
 
 
         val passCountAndAccuracyDf = passEventsDf.groupBy(
-            col("team.name").as("team_name") ,
+            col("team.name").as("team_name"),
             col("player.name").as("player_name")
           )
           .agg(
             count("*").as("total_passes"),
-            count(when(col("pass.outcome.name").isNull , 1)).as("accurate_passes")
+            count(when(col("pass.outcome.name").isNull, 1)).as("accurate_passes")
           ).withColumn("pass_accuracy",
             round(col("accurate_passes") / col("total_passes") * 100))
           .orderBy(col("team_name"), col("pass_accuracy").desc)
@@ -116,8 +115,7 @@ class FootballAnalyzer (
 
   }
 
-
-  def getExactPlayerPassInformation():Option[Dataset[Row]] = {
+  def getExactPlayerPassInformation(): Option[Dataset[Row]] = {
     gameDF match {
       case Some(df) =>
         val passEventsDF = df.filter(col("type.name") === "Pass")
@@ -150,7 +148,7 @@ class FootballAnalyzer (
           )
           .withColumn("pass_accuracy", round(col("accurate_passes") / col("total_passes") * 100))
           .withColumn("drop_kick_passes_accuracy", coalesce(round(col("accurate_drop_kick_passes") / col("total_drop_kick_passes") * 100), lit(0)))
-          .withColumn("head_passes_accuracy", coalesce(round(col("accurate_head_passes") / col("total_head_passes") * 100),lit(0)))
+          .withColumn("head_passes_accuracy", coalesce(round(col("accurate_head_passes") / col("total_head_passes") * 100), lit(0)))
           .withColumn("keeper_arm_passes_accuracy", coalesce(round(col("accurate_keeper_arm_passes") / col("total_keeper_arm_passes") * 100), lit(0)))
           .withColumn("left_foot_passes_accuracy", coalesce(round(col("accurate_left_foot_passes") / col("total_left_foot_passes") * 100), lit(0)))
           .withColumn("right_foot_passes_accuracy", coalesce(round(col("accurate_right_foot_passes") / col("total_right_foot_passes") * 100), lit(0)))
@@ -204,9 +202,8 @@ class FootballAnalyzer (
     }
   }
 
-
-  def getPlayerShotNumberAndAccuracy():Option[Dataset[Row]] = {
-    gameDF match{
+  def getPlayerShotNumberAndAccuracy(): Option[Dataset[Row]] = {
+    gameDF match {
       case Some(df) =>
         val shotsEventsDF = df.filter(col("type.name") === "Shot")
 
@@ -218,7 +215,7 @@ class FootballAnalyzer (
           .agg(
             count("*").as("total_shots"),
             count(when(col("shot.outcome.name") === "Goal", 1)).as("goal"),
-            count(when(col("shot.outcome.name").isin("Saved","Saved off T", "Saved to Post", "Blocked"), 1)).as("blocked_or_saved_by_goalkeeper"),
+            count(when(col("shot.outcome.name").isin("Saved", "Saved off T", "Saved to Post", "Blocked"), 1)).as("blocked_or_saved_by_goalkeeper"),
             count(when(col("shot.outcome.name").isin("Off T", "Post", "Wayward"), 1)).as("not_on_target")
           )
           .withColumn("on_target_accuracy", round((col("total_shots") - col("not_on_target")) / col("total_shots") * 100))
@@ -232,7 +229,7 @@ class FootballAnalyzer (
     }
   }
 
-  def getPlayerTotalTimeWithBall():Option[Dataset[Row]] ={
+  def getPlayerTotalTimeWithBall(): Option[Dataset[Row]] = {
     gameDF match {
       case Some(df) =>
         val carryEventsDF = df.filter(col("type.name") === "Carry")
@@ -242,7 +239,7 @@ class FootballAnalyzer (
             col("player.name").as("player_name")
           )
           .agg(
-            round(sum(col("duration"))/60, 2).as("total_time_with_ball")
+            round(sum(col("duration")) / 60, 2).as("total_time_with_ball")
           )
           .orderBy(col("team_name"), col("total_time_with_ball").desc)
 
@@ -253,9 +250,8 @@ class FootballAnalyzer (
 
   }
 
-
-  def getPlayerDribbleNumberAndWinRatio():Option[Dataset[Row]]= {
-    gameDF match  {
+  def getPlayerDribbleNumberAndWinRatio(): Option[Dataset[Row]] = {
+    gameDF match {
       case Some(df) =>
         val dribbleEventsDF = df.filter(col("type.name") === "Dribble")
 
@@ -269,7 +265,7 @@ class FootballAnalyzer (
             count("*").as("total_dribbles"),
 
           )
-          .withColumn("dribbles_win_ratio", round(col("successful_dribbles") / col("total_dribbles")*100))
+          .withColumn("dribbles_win_ratio", round(col("successful_dribbles") / col("total_dribbles") * 100))
           .orderBy(col("team_name"), col("dribbles_win_ratio").desc)
 
         Some(dribbleCountAndRatio)
@@ -278,8 +274,7 @@ class FootballAnalyzer (
     }
   }
 
-
-  def getPlayerBallRecoveryNumberAndRatio():Option[Dataset[Row]] = {
+  def getPlayerBallRecoveryNumberAndRatio(): Option[Dataset[Row]] = {
     gameDF match {
       case Some(df) =>
         val recoveriesEventsDF = df.filter(col("type.name") === "Ball Recovery")
@@ -292,7 +287,7 @@ class FootballAnalyzer (
             count(when(col("ball_recovery.recovery_failure").isNull, 1)).as("successful_ball_recoveries"),
             count("*").as("total_ball_recoveries")
           )
-          .withColumn("ball_recovery_ratio", round(col("successful_ball_recoveries")/col("total_ball_recoveries")*100))
+          .withColumn("ball_recovery_ratio", round(col("successful_ball_recoveries") / col("total_ball_recoveries") * 100))
           .orderBy(col("team_name"), col("ball_recovery_ratio").desc)
 
         Some(recoveriesCountAndRatio)
@@ -309,10 +304,10 @@ class FootballAnalyzer (
         val blockEventsDFSchema = blocksEventsDF.schema
 
 
-        val deflectionBlockExists = nestedFieldExists(blockEventsDFSchema,"block", "deflection")
-        val offensiveBlockExists = nestedFieldExists(blockEventsDFSchema, "block" , "offensive")
-        val saveBlockExists = nestedFieldExists(blockEventsDFSchema,"block","save_block")
-        val counterpressBlockExists = nestedFieldExists(blockEventsDFSchema,"block","counterpress")
+        val deflectionBlockExists = nestedFieldExists(blockEventsDFSchema, "block", "deflection")
+        val offensiveBlockExists = nestedFieldExists(blockEventsDFSchema, "block", "offensive")
+        val saveBlockExists = nestedFieldExists(blockEventsDFSchema, "block", "save_block")
+        val counterpressBlockExists = nestedFieldExists(blockEventsDFSchema, "block", "counterpress")
 
 
         var aggExprs = Seq(
@@ -406,7 +401,7 @@ class FootballAnalyzer (
           count(when(col("foul_committed").isNull, 1)).as("standard_fouls")
         )
 
-        if(sixSecondsFoulExist) {
+        if (sixSecondsFoulExist) {
           aggCommittedFoulExpression :+= count(when(col("foul_committed.type.name") === "6 Seconds", 1)).as("6_seconds_fouls")
         }
 
@@ -571,16 +566,15 @@ class FootballAnalyzer (
     }
   }
 
-  def getPlayerFoulsWon():Option[Dataset[Row]] ={
+  def getPlayerFoulsWon(): Option[Dataset[Row]] = {
     gameDF match {
       case Some(df) =>
         val foulWonEventsDF = df.filter(col("type.name") === "Foul Won")
 
         val foulWonEventsDFSchema = foulWonEventsDF.schema
-        val wonDefensiveFoulExist = nestedFieldExists(foulWonEventsDFSchema,"foul_won","defensive")
+        val wonDefensiveFoulExist = nestedFieldExists(foulWonEventsDFSchema, "foul_won", "defensive")
         val wonAdvantageFoulExist = nestedFieldExists(foulWonEventsDFSchema, "foul_won", "advantage")
-        val wonPenaltyFoulExist = nestedFieldExists(foulWonEventsDFSchema,"foul_won","penalty")
-
+        val wonPenaltyFoulExist = nestedFieldExists(foulWonEventsDFSchema, "foul_won", "penalty")
 
 
         var aggCommittedFoulExpression = Seq(
@@ -594,17 +588,17 @@ class FootballAnalyzer (
         )
 
 
-        if(wonAdvantageFoulExist){
+        if (wonAdvantageFoulExist) {
 
           aggWonFoulExpression :+= count(when(col("foul_won.advantage").isNotNull, 1)).as("advantage_fouls")
         }
 
-        if(wonDefensiveFoulExist){
+        if (wonDefensiveFoulExist) {
 
           aggWonFoulExpression :+= count(when(col("foul_won.defensive").isNotNull, 1)).as("defensive_fouls")
         }
 
-        if(wonPenaltyFoulExist){
+        if (wonPenaltyFoulExist) {
 
           aggWonFoulExpression :+= count(when(col("foul_won.penalty").isNotNull, 1)).as("penalty_fouls")
         }
@@ -615,24 +609,24 @@ class FootballAnalyzer (
         ).agg(aggWonFoulExpression.head, aggWonFoulExpression.tail: _*)
 
         var withWonFoulsRatio = foulWonPerTypeCount
-          .withColumn("standard_foul_ratio", round(col("standard_fouls")/col("total_fouls_won")*100, 2))
+          .withColumn("standard_foul_ratio", round(col("standard_fouls") / col("total_fouls_won") * 100, 2))
 
 
-        if(wonDefensiveFoulExist){
+        if (wonDefensiveFoulExist) {
 
-          withWonFoulsRatio = withWonFoulsRatio.withColumn("defensive_foul_ratio", round(col("defensive_fouls")/col("total_fouls_won")*100, 2))
+          withWonFoulsRatio = withWonFoulsRatio.withColumn("defensive_foul_ratio", round(col("defensive_fouls") / col("total_fouls_won") * 100, 2))
         }
 
 
-        if(wonAdvantageFoulExist){
+        if (wonAdvantageFoulExist) {
 
-          withWonFoulsRatio = withWonFoulsRatio.withColumn("advantage_foul_ratio", round(col("advantage_fouls")/col("total_fouls_won")*100, 2))
+          withWonFoulsRatio = withWonFoulsRatio.withColumn("advantage_foul_ratio", round(col("advantage_fouls") / col("total_fouls_won") * 100, 2))
         }
 
 
-        if(wonPenaltyFoulExist){
+        if (wonPenaltyFoulExist) {
 
-          withWonFoulsRatio = withWonFoulsRatio.withColumn("penalty_foul_ratio", round(col("penalty_fouls")/col("total_fouls_won")*100, 2))
+          withWonFoulsRatio = withWonFoulsRatio.withColumn("penalty_foul_ratio", round(col("penalty_fouls") / col("total_fouls_won") * 100, 2))
         }
 
         val selectedWonFoulsColumns = Seq(
@@ -641,7 +635,7 @@ class FootballAnalyzer (
           col("total_fouls_won"),
           col("standard_fouls"),
           col("standard_foul_ratio")
-        )++ (
+        ) ++ (
           if (wonDefensiveFoulExist) Seq(col("defensive_fouls"), col("defensive_foul_ratio")) else Seq()
 
           ) ++ (
@@ -663,7 +657,6 @@ class FootballAnalyzer (
 
     }
   }
-
 
   def getPlayersPositionsCount(): Option[Dataset[Row]] = {
     gameDF match {
@@ -697,26 +690,8 @@ class FootballAnalyzer (
             col("player_pitch_location_count").desc
           )
         Some(playerPitchLocationDF)
-      case None =>  None
+      case None => None
     }
   }
 
-
-  def initializeDataFrame():Unit = {
-    gameDF = Some(getDFFromUrl)
-  }
-
-  private def getDFFromUrl:sql.DataFrame = {
-    val json: Try[String]= Using(Source.fromURL(url)) {source => source.mkString}
-
-    json match {
-      case scala.util.Success(content) =>
-
-        spark.read.json(Seq(content).toDS)
-
-
-      case scala.util.Failure(exception) => println(s"Error occurred: ${exception.getMessage}")
-        throw exception
-    }
-  }
 }
