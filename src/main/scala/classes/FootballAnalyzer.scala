@@ -17,12 +17,6 @@ class FootballAnalyzer (
   private var gameDF: Option[DataFrame] = None
 
 
-  def showDF():Unit = {
-    gameDF.foreach(_.show())
-
-  }
-
-
   private def nestedFieldExists(dfSchema: StructType, parentField: String, nestedField: String): Boolean = {
     dfSchema.find(_.name == parentField) match {
       case Some(StructField(_, StructType(fields), _, _)) =>
