@@ -6,7 +6,7 @@ import org.apache.spark.sql.SparkSession
 object SparkSessionSingleton{
   @transient private var instance: SparkSession = _
 
-  def getInstance: SparkSession = {
+  def createOrGetInstance: SparkSession = {
     println("Instance:"+instance)
     if(instance == null){
       instance = SparkSession.builder()
