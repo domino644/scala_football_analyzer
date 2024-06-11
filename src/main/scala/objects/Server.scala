@@ -4,10 +4,8 @@ package objects
 import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.Behaviors
 import akka.http.scaladsl.Http
-import akka.http.scaladsl.model.Uri.Path.~
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Directives._
-import akka.stream.Materializer
 
 import scala.concurrent.ExecutionContextExecutor
 import scala.io.StdIn
