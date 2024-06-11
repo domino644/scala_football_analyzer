@@ -23,13 +23,13 @@ object Server {
     val spark: SparkSession = SparkSessionSingleton.createOrGetInstance
     import spark.implicits._
     val competitionHolder: CompetitionHolder = new CompetitionHolder(spark)
-    val matchHolder: MatchHolder = new MatchHolder(spark);
-    val eventHolder: EventHolder = new EventHolder(spark);
+    val matchHolder: MatchHolder = new MatchHolder(spark)
+    val eventHolder: EventHolder = new EventHolder(spark)
     val footballAnalyzer: FootballAnalyzer = new FootballAnalyzer(spark)
     val route =
       path("competitions") {
         parameter("all".as[Boolean].?) {
-          (allOpt) => {
+          allOpt => {
             val all = allOpt.getOrElse(false)
             get {
               val competitions: DataFrame = if (!all) competitionHolder.getCompetitions else competitionHolder.getDF
@@ -59,18 +59,18 @@ object Server {
             get{
               stat match {
                 case "all" => events = eventHolder.getDF
-                case "players" => events = footballAnalyzer.getPlayersWithNumbersAndPositions()
-                case "subs" => events = footballAnalyzer.getAllSubstitution()
-                case "pass_acc" => events = footballAnalyzer.getPlayerPassNumberAndAccuracy()
-                case "pass_info" => events = footballAnalyzer.getExactPlayerPassInformation()
-                case "shot" => events = footballAnalyzer.getPlayerShotNumberAndAccuracy()
-                case "possesion" => events = footballAnalyzer.getPlayerTotalTimeWithBall()
-                case "dribble" => events = footballAnalyzer.getPlayerDribbleNumberAndWinRatio()
-                case "recovery" => events = footballAnalyzer.getPlayerBallRecoveryNumberAndRatio()
-                case "block" => events = footballAnalyzer.getPlayerBlockCountAndRatio()
-                case "fouls_commit" => events = footballAnalyzer.getPlayerFoulsCommited()
-                case "fouls_won" => events = footballAnalyzer.getPlayerFoulsWon()
-                case "position" => events = footballAnalyzer.getPlayersPositionsCount()
+                case "players" => events = footballAnalyzer.getPlayersWithNumbersAndPositions
+                case "subs" => events = footballAnalyzer.getAllSubstitution
+                case "pass_acc" => events = footballAnalyzer.getPlayerPassNumberAndAccuracy
+                case "pass_info" => events = footballAnalyzer.getExactPlayerPassInformation
+                case "shot" => events = footballAnalyzer.getPlayerShotNumberAndAccuracy
+                case "possesion" => events = footballAnalyzer.getPlayerTotalTimeWithBall
+                case "dribble" => events = footballAnalyzer.getPlayerDribbleNumberAndWinRatio
+                case "recovery" => events = footballAnalyzer.getPlayerBallRecoveryNumberAndRatio
+                case "block" => events = footballAnalyzer.getPlayerBlockCountAndRatio
+                case "fouls_commit" => events = footballAnalyzer.getPlayerFoulsCommited
+                case "fouls_won" => events = footballAnalyzer.getPlayerFoulsWon
+                case "position" => events = footballAnalyzer.getPlayersPositionsCount
                 case _ => events = Seq("error", s"unknown stat: $stat").toDF()
               }
               val stringifiedJSON: String = DataFrameParser.DFtoJsonString(events)

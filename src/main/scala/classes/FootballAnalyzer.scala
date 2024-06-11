@@ -28,7 +28,7 @@ class FootballAnalyzer(val spark: SparkSession) {
     }
   }
 
-  def getPlayersWithNumbersAndPositions(): DataFrame = {
+  def getPlayersWithNumbersAndPositions: DataFrame = {
 
     val selectedDF = gameDF.select($"team.name".as("Team name"), explode($"tactics.lineup").as("lineup"))
 
@@ -48,7 +48,7 @@ class FootballAnalyzer(val spark: SparkSession) {
     formattedDF
   }
 
-  def getAllSubstitution(): DataFrame = {
+  def getAllSubstitution: DataFrame = {
     val selectedDF = gameDF.select(
       $"team.name".as("Team_name"),
       $"player.name".as("player_out"),
@@ -73,7 +73,7 @@ class FootballAnalyzer(val spark: SparkSession) {
     sortedDF
   }
 
-  def getPlayerPassNumberAndAccuracy(): DataFrame = {
+  def getPlayerPassNumberAndAccuracy: DataFrame = {
     val passEventsDf = gameDF.filter(col("type.name") === "Pass")
 
 
@@ -92,7 +92,7 @@ class FootballAnalyzer(val spark: SparkSession) {
     passCountAndAccuracyDf
   }
 
-  def getExactPlayerPassInformation(): DataFrame = {
+  def getExactPlayerPassInformation: DataFrame = {
     val passEventsDF = gameDF.filter(col("type.name") === "Pass")
 
     val exactPassInfo = passEventsDF.groupBy(
@@ -172,7 +172,7 @@ class FootballAnalyzer(val spark: SparkSession) {
     exactPassInfo
   }
 
-  def getPlayerShotNumberAndAccuracy(): DataFrame = {
+  def getPlayerShotNumberAndAccuracy: DataFrame = {
     val shotsEventsDF = gameDF.filter(col("type.name") === "Shot")
 
 
@@ -194,7 +194,7 @@ class FootballAnalyzer(val spark: SparkSession) {
     shotCountAndAccuracyDf
   }
 
-  def getPlayerTotalTimeWithBall(): DataFrame = {
+  def getPlayerTotalTimeWithBall: DataFrame = {
     val carryEventsDF = gameDF.filter(col("type.name") === "Carry")
 
     val ballCarryTimeDF = carryEventsDF.groupBy(
@@ -209,7 +209,7 @@ class FootballAnalyzer(val spark: SparkSession) {
     ballCarryTimeDF
   }
 
-  def getPlayerDribbleNumberAndWinRatio(): DataFrame = {
+  def getPlayerDribbleNumberAndWinRatio: DataFrame = {
     val dribbleEventsDF = gameDF.filter(col("type.name") === "Dribble")
 
     val dribbleCountAndRatio = dribbleEventsDF.groupBy(
@@ -229,7 +229,7 @@ class FootballAnalyzer(val spark: SparkSession) {
 
   }
 
-  def getPlayerBallRecoveryNumberAndRatio(): DataFrame = {
+  def getPlayerBallRecoveryNumberAndRatio: DataFrame = {
     val recoveriesEventsDF = gameDF.filter(col("type.name") === "Ball Recovery")
 
     val recoveriesCountAndRatio = recoveriesEventsDF.groupBy(
@@ -246,7 +246,7 @@ class FootballAnalyzer(val spark: SparkSession) {
     recoveriesCountAndRatio
   }
 
-  def getPlayerBlockCountAndRatio(): DataFrame = {
+  def getPlayerBlockCountAndRatio: DataFrame = {
     val blocksEventsDF = gameDF.filter(col("type.name") === "Block")
     val blockEventsDFSchema = blocksEventsDF.schema
 
@@ -322,7 +322,7 @@ class FootballAnalyzer(val spark: SparkSession) {
     finalDF
   }
 
-  def getPlayerFoulsCommited(): DataFrame = {
+  def getPlayerFoulsCommited: DataFrame = {
     val foulCommitedEventsDF = gameDF.filter(col("type.name") === "Foul Committed")
     val foulCommitedEventsDFSchema = foulCommitedEventsDF.schema
 
@@ -506,7 +506,7 @@ class FootballAnalyzer(val spark: SparkSession) {
     finalCommittedFoulsDF
   }
 
-  def getPlayerFoulsWon(): DataFrame = {
+  def getPlayerFoulsWon: DataFrame = {
     val foulWonEventsDF = gameDF.filter(col("type.name") === "Foul Won")
 
     val foulWonEventsDFSchema = foulWonEventsDF.schema
@@ -593,7 +593,7 @@ class FootballAnalyzer(val spark: SparkSession) {
 
   }
 
-  def getPlayersPositionsCount(): DataFrame = {
+  def getPlayersPositionsCount: DataFrame = {
     val playerPitchLocationDF = gameDF.select(
         col("team.name").as("team_name"),
         col("player.name").as("player_name"),
