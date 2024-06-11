@@ -27,7 +27,9 @@ object Server {
     val eventHolder: EventHolder = new EventHolder(spark)
     val footballAnalyzer: FootballAnalyzer = new FootballAnalyzer(spark)
     val route =
-      path("competitions") {
+      path("") {
+        complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, "<div><h1>football-analyzer-api</h1><ul><li>competitions</li><li>matches?seasonID;competitionID</li><li>events?eventID;stat</li></ul></div>"))
+      } ~ path("competitions") {
         parameter("all".as[Boolean].?) {
           allOpt => {
             val all = allOpt.getOrElse(false)
@@ -56,7 +58,7 @@ object Server {
             eventHolder.setEventID(eventID)
             footballAnalyzer.setGameDF(eventHolder.getDF)
             var events: DataFrame = spark.emptyDataFrame
-            get{
+            get {
               stat match {
                 case "all" => events = eventHolder.getDF
                 case "players" => events = footballAnalyzer.getPlayersWithNumbersAndPositions
