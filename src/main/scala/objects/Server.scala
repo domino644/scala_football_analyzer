@@ -73,7 +73,7 @@ object Server {
                 case "fouls_commit" => events = footballAnalyzer.getPlayerFoulsCommited
                 case "fouls_won" => events = footballAnalyzer.getPlayerFoulsWon
                 case "position" => events = footballAnalyzer.getPlayersPositionsCount
-                case _ => events = Seq("error", s"unknown stat: $stat").toDF()
+                case _ => events = Seq(s"unknown stat: $stat").toDF("error")
               }
               val stringifiedJSON: String = DataFrameParser.DFtoJsonString(events)
               complete(HttpEntity(ContentTypes.`application/json`, stringifiedJSON))
