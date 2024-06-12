@@ -82,7 +82,8 @@ class FootballAnalyzer(val spark: SparkSession) {
       col("player.name").as("player_name"),
       col("player.id").as("player_id"),
       col("location").as("start_location"),
-      col("pass.end_location").as("end_location")
+      col("pass.end_location").as("end_location"),
+      when(col("pass.outcome").isNull,"Completed").otherwise(col("pass.outcome.name")).as("outcome")
     )
 
     passEventLocalizationsDF
@@ -235,6 +236,7 @@ class FootballAnalyzer(val spark: SparkSession) {
       col("team.name").as("team_name"),
       col("player.id").as("player_id"),
       col("player.name").as("player_name"),
+      col("location").as("start_location"),
       col("shot.end_location").as("end_location"),
       col("shot.outcome.name").as("outcome"),
       when(col("shot.outcome.name") === "Goal", 1).otherwise(0).as("is_goal")
