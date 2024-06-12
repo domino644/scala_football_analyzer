@@ -83,7 +83,7 @@ class FootballAnalyzer(val spark: SparkSession) {
       col("player.id").as("player_id"),
       col("location").as("start_location"),
       col("pass.end_location").as("end_location"),
-      when(col("pass.outcome").isNull,"Completed").otherwise(col("pass.outcome.name")).as("outcome")
+      when(col("pass.outcome").isNull, "Completed").otherwise(col("pass.outcome.name")).as("outcome")
     )
 
     passEventLocalizationsDF
@@ -675,37 +675,21 @@ class FootballAnalyzer(val spark: SparkSession) {
     getPlayerFoulsWon.filter(col("player_id") === playerID)
   }
 
-  def getPlayersPositionsCount: DataFrame = {
+  def getPlayersPositions: DataFrame = {
     val playerPitchLocationDF = gameDF.select(
-        col("team.name").as("team_name"),
-        col("player.name").as("player_name"),
-        col("player.id").as("player_id"),
-        col("location")
-      ).where(
-        col("team_name").isNotNull &&
-          col("player_name").isNotNull &&
-          col("location").isNotNull
-      )
-      .withColumn("player_location", array(
-        round(col("location")(0)),
-        round(col("location")(1))
-      )
-      )
-      .groupBy(
-        col("team_name"),
-        col("player_name"),
-        col("player_location")
-      ).agg(
-        count("*").as("player_pitch_location_count")
-      ).orderBy(
-        col("team_name"),
-        col("player_name"),
-        col("player_pitch_location_count").desc
-      )
+      col("team.name").as("team_name"),
+      col("player.name").as("player_name"),
+      col("player.id").as("player_id"),
+      col("location")
+    ).where(
+      col("team_name").isNotNull &&
+        col("player_name").isNotNull &&
+        col("location").isNotNull
+    )
     playerPitchLocationDF
   }
 
-  def getPlayersPositionsCount(playerID: Int): DataFrame = {
-    getPlayersPositionsCount.filter(col("player_id") === playerID)
+  def getPlayersPositions(playerID: Int): DataFrame = {
+    getPlayersPositions.filter(col("player_id") === playerID)
   }
 }

@@ -75,7 +75,7 @@ object Server {
                   case "block" => events = footballAnalyzer.getPlayerBlockCountAndRatio
                   case "fouls_commit" => events = footballAnalyzer.getPlayerFoulsCommited
                   case "fouls_won" => events = footballAnalyzer.getPlayerFoulsWon
-                  case "position" => events = footballAnalyzer.getPlayersPositionsCount
+                  case "position" => events = footballAnalyzer.getPlayersPositions
                   case _ => events = Seq(s"unknown stat: $stat").toDF("error")
                 }
               } else {
@@ -94,7 +94,7 @@ object Server {
                   case "block" => events = footballAnalyzer.getPlayerBlockCountAndRatio(playerID)
                   case "fouls_commit" => events = footballAnalyzer.getPlayerFoulsCommited(playerID)
                   case "fouls_won" => events = footballAnalyzer.getPlayerFoulsWon(playerID)
-                  case "position" => events = footballAnalyzer.getPlayersPositionsCount(playerID)
+                  case "position" => events = footballAnalyzer.getPlayersPositions( playerID)
                   case _ => events = Seq(s"unknown stat: $stat").toDF("error")
                 }
               }
