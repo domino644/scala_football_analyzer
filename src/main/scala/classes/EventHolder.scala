@@ -8,10 +8,8 @@ class EventHolder(spark: SparkSession, var eventID: Int = 0) extends Holder(spar
   if(eventID!=0){
     initDF()
   }
-
   private def setBaseURL(): Unit =
     baseURL = s"https://raw.githubusercontent.com/statsbomb/open-data/master/data/events/$eventID.json"
-
   def setEventID(eventID: Int): Unit ={
     this.eventID = eventID
     setBaseURL()

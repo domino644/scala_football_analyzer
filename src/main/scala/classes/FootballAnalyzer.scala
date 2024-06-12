@@ -1,7 +1,7 @@
 package agh.scala.footballanalyzer
 package classes
 
-import org.apache.spark.sql.{DataFrame,  SparkSession}
+import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.functions.{array, coalesce, col, collect_list, concat_ws, count, explode, expr, lit, round, sum, when}
 import org.apache.spark.sql.types.{StructField, StructType}
 
@@ -11,7 +11,7 @@ class FootballAnalyzer(val spark: SparkSession) {
 
   private var gameDF: DataFrame = spark.emptyDataFrame
 
-  def setGameDF(gameDF: DataFrame): Unit ={
+  def setGameDF(gameDF: DataFrame): Unit = {
     this.gameDF = gameDF
   }
 
@@ -33,7 +33,8 @@ class FootballAnalyzer(val spark: SparkSession) {
     val selectedDF = gameDF.select($"team.name".as("Team name"), explode($"tactics.lineup").as("lineup"))
 
     val playerDF = selectedDF.select(
-      $"Team name", $"lineup.player.name".as("player_name"),
+      $"Team name",
+      $"lineup.player.name".as("player_name"),
       $"lineup.position.name".as("player_position"),
       $"lineup.jersey_number".as("player_number")
     ).distinct()
@@ -73,6 +74,18 @@ class FootballAnalyzer(val spark: SparkSession) {
     sortedDF
   }
 
+  def getPlayerPassLocalizations: DataFrame = {
+    val passEventsDF = gameDF.filter(col("type.name") === "Pass")
+
+    val passEventLocalizationsDF = passEventsDF.select(
+      col("player.name").as("player_name"),
+      col("player.id").as("player_id"),
+      col("location").as("start_location"),
+      col("pass.end_location").as("end_location")
+    )
+
+    passEventLocalizationsDF
+  }
   def getPlayerPassNumberAndAccuracy: DataFrame = {
     val passEventsDf = gameDF.filter(col("type.name") === "Pass")
 
@@ -192,6 +205,22 @@ class FootballAnalyzer(val spark: SparkSession) {
       .orderBy(col("team_name"), col("on_target_accuracy").desc)
 
     shotCountAndAccuracyDf
+  }
+
+  def getPlayerShotLocalizations: DataFrame = {
+    val shotsEventsDF = gameDF.filter(col("type.name") === "Shot")
+
+
+    val shotCountAndAccuracyDf = shotsEventsDF.select(
+      col("team.name").as("team_name"),
+      col("player.name").as("player_name"),
+      col("shot.end_location").as("end_location"),
+      col("shot.outcome.name").as("outcome"),
+      when(col("shot.outcome.name") === "Goal", 1).otherwise(0).as("is_goal")
+    )
+
+    shotCountAndAccuracyDf
+
   }
 
   def getPlayerTotalTimeWithBall: DataFrame = {
@@ -513,12 +542,6 @@ class FootballAnalyzer(val spark: SparkSession) {
     val wonDefensiveFoulExist = nestedFieldExists(foulWonEventsDFSchema, "foul_won", "defensive")
     val wonAdvantageFoulExist = nestedFieldExists(foulWonEventsDFSchema, "foul_won", "advantage")
     val wonPenaltyFoulExist = nestedFieldExists(foulWonEventsDFSchema, "foul_won", "penalty")
-
-
-    var aggCommittedFoulExpression = Seq(
-      count("*").as("total_fouls_committed"),
-      count(when(col("foul_committed").isNull, 1)).as("standard_fouls")
-    )
 
     var aggWonFoulExpression = Seq(
       count("*").as("total_fouls_won"),

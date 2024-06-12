@@ -9,7 +9,6 @@ import akka.actor.typed.scaladsl.Behaviors
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Directives._
-import org.apache.spark.sql.types.StringType
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
 
 import scala.concurrent.ExecutionContextExecutor
@@ -65,7 +64,9 @@ object Server {
                 case "subs" => events = footballAnalyzer.getAllSubstitution
                 case "pass_acc" => events = footballAnalyzer.getPlayerPassNumberAndAccuracy
                 case "pass_info" => events = footballAnalyzer.getExactPlayerPassInformation
+                case "pass_localizations" => events = footballAnalyzer.getPlayerPassLocalizations
                 case "shot" => events = footballAnalyzer.getPlayerShotNumberAndAccuracy
+                case "shot_localizations" => events = footballAnalyzer.getPlayerShotLocalizations
                 case "possesion" => events = footballAnalyzer.getPlayerTotalTimeWithBall
                 case "dribble" => events = footballAnalyzer.getPlayerDribbleNumberAndWinRatio
                 case "recovery" => events = footballAnalyzer.getPlayerBallRecoveryNumberAndRatio
