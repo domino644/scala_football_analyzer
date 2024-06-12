@@ -76,6 +76,7 @@ object Server {
                   case "fouls_commit" => events = footballAnalyzer.getPlayerFoulsCommited
                   case "fouls_won" => events = footballAnalyzer.getPlayerFoulsWon
                   case "position" => events = footballAnalyzer.getPlayersPositions
+                  case "pressure" => events = footballAnalyzer.getPlayerPressures
                   case _ => events = Seq(s"unknown stat: $stat").toDF("error")
                 }
               } else {
@@ -95,6 +96,7 @@ object Server {
                   case "fouls_commit" => events = footballAnalyzer.getPlayerFoulsCommited(playerID)
                   case "fouls_won" => events = footballAnalyzer.getPlayerFoulsWon(playerID)
                   case "position" => events = footballAnalyzer.getPlayersPositions( playerID)
+                  case "pressure" => events = footballAnalyzer.getPlayerPressures(playerID)
                   case _ => events = Seq(s"unknown stat: $stat").toDF("error")
                 }
               }

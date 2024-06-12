@@ -689,6 +689,22 @@ class FootballAnalyzer(val spark: SparkSession) {
     playerPitchLocationDF
   }
 
+  def getPlayerPressures: DataFrame = {
+    val pressureDF = gameDF.select(
+      col("player.id").as("player_id"),
+      col("player.name").as("player_name"),
+      col("location")
+    ).where(
+      col("type.name").isNotNull &&
+      col("type.name") === "Pressure"
+    )
+
+    pressureDF
+  }
+
+  def getPlayerPressures(playerID: Int): DataFrame = {
+    getPlayerPressures.filter(col("player_id") === playerID)
+  }
   def getPlayersPositions(playerID: Int): DataFrame = {
     getPlayersPositions.filter(col("player_id") === playerID)
   }
