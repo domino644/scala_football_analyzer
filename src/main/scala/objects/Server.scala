@@ -9,7 +9,7 @@ import akka.actor.typed.scaladsl.Behaviors
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Directives._
-import org.apache.spark.sql.{DataFrame, Row, SparkSession}
+import org.apache.spark.sql.{DataFrame, SparkSession}
 
 import scala.concurrent.ExecutionContextExecutor
 import scala.io.StdIn
@@ -95,7 +95,7 @@ object Server {
                   case "block" => events = footballAnalyzer.getPlayerBlockCountAndRatio(playerID)
                   case "fouls_commit" => events = footballAnalyzer.getPlayerFoulsCommited(playerID)
                   case "fouls_won" => events = footballAnalyzer.getPlayerFoulsWon(playerID)
-                  case "position" => events = footballAnalyzer.getPlayersPositions( playerID)
+                  case "position" => events = footballAnalyzer.getPlayersPositions(playerID)
                   case "pressure" => events = footballAnalyzer.getPlayerPressures(playerID)
                   case _ => events = Seq(s"unknown stat: $stat").toDF("error")
                 }

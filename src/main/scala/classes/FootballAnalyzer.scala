@@ -1,9 +1,9 @@
 package agh.scala.footballanalyzer
 package classes
 
-import org.apache.spark.sql.{DataFrame, SparkSession}
-import org.apache.spark.sql.functions.{array, coalesce, col, collect_list, concat_ws, count, explode, expr, lit, round, sum, when}
+import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.{StructField, StructType}
+import org.apache.spark.sql.{DataFrame, SparkSession}
 
 class FootballAnalyzer(val spark: SparkSession) {
 
@@ -696,7 +696,7 @@ class FootballAnalyzer(val spark: SparkSession) {
       col("location")
     ).where(
       col("type.name").isNotNull &&
-      col("type.name") === "Pressure"
+        col("type.name") === "Pressure"
     )
 
     pressureDF
@@ -705,6 +705,7 @@ class FootballAnalyzer(val spark: SparkSession) {
   def getPlayerPressures(playerID: Int): DataFrame = {
     getPlayerPressures.filter(col("player_id") === playerID)
   }
+
   def getPlayersPositions(playerID: Int): DataFrame = {
     getPlayersPositions.filter(col("player_id") === playerID)
   }
