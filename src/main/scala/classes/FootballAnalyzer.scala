@@ -709,4 +709,5 @@ class FootballAnalyzer(val spark: SparkSession) {
   def getPlayersPositions(playerID: Int): DataFrame = {
     getPlayersPositions.filter(col("player_id") === playerID)
   }
+
 }

@@ -1,7 +1,7 @@
 package agh.scala.footballanalyzer
 package objects
 
-import classes.{CompetitionHolder, EventHolder, FootballAnalyzer, MatchHolder}
+import classes.{CompetitionHolder, DataLoader, EventHolder, FootballAnalyzer, MatchHolder}
 import objects.utils.{DataFrameParser, SparkSessionSingleton}
 
 import akka.actor.typed.ActorSystem
@@ -9,7 +9,10 @@ import akka.actor.typed.scaladsl.Behaviors
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Directives._
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.types.StringType
+import org.apache.spark.sql.{DataFrame, Row, SparkSession}
+
 
 import scala.concurrent.ExecutionContextExecutor
 import scala.io.StdIn
