@@ -52,29 +52,51 @@ object Server {
           }
         }
       } ~ path("events") {
-        parameter("eventID".as[Int], "stat".as[String]) {
-          (eventID, stat) => {
+        parameter("eventID".as[Int], "stat".as[String], "player_id".as[Int].?) {
+          (eventID, stat, playerIDOpt) => {
+            val playerID = playerIDOpt.getOrElse(-1)
             eventHolder.setEventID(eventID)
             footballAnalyzer.setGameDF(eventHolder.getDF)
             var events: DataFrame = spark.emptyDataFrame
             get {
-              stat match {
-                case "all" => events = eventHolder.getDF
-                case "players" => events = footballAnalyzer.getPlayersWithNumbersAndPositions
-                case "subs" => events = footballAnalyzer.getAllSubstitution
-                case "pass_acc" => events = footballAnalyzer.getPlayerPassNumberAndAccuracy
-                case "pass_info" => events = footballAnalyzer.getExactPlayerPassInformation
-                case "pass_localizations" => events = footballAnalyzer.getPlayerPassLocalizations
-                case "shot" => events = footballAnalyzer.getPlayerShotNumberAndAccuracy
-                case "shot_localizations" => events = footballAnalyzer.getPlayerShotLocalizations
-                case "possesion" => events = footballAnalyzer.getPlayerTotalTimeWithBall
-                case "dribble" => events = footballAnalyzer.getPlayerDribbleNumberAndWinRatio
-                case "recovery" => events = footballAnalyzer.getPlayerBallRecoveryNumberAndRatio
-                case "block" => events = footballAnalyzer.getPlayerBlockCountAndRatio
-                case "fouls_commit" => events = footballAnalyzer.getPlayerFoulsCommited
-                case "fouls_won" => events = footballAnalyzer.getPlayerFoulsWon
-                case "position" => events = footballAnalyzer.getPlayersPositionsCount
-                case _ => events = Seq(s"unknown stat: $stat").toDF("error")
+              if (playerID == -1) {
+                stat match {
+                  case "all" => events = eventHolder.getDF
+                  case "players" => events = footballAnalyzer.getPlayersWithNumbersAndPositions
+                  case "subs" => events = footballAnalyzer.getAllSubstitution
+                  case "pass_acc" => events = footballAnalyzer.getPlayerPassNumberAndAccuracy
+                  case "pass_info" => events = footballAnalyzer.getExactPlayerPassInformation
+                  case "pass_localizations" => events = footballAnalyzer.getPlayerPassLocalizations
+                  case "shot" => events = footballAnalyzer.getPlayerShotNumberAndAccuracy
+                  case "shot_localizations" => events = footballAnalyzer.getPlayerShotLocalizations
+                  case "possesion" => events = footballAnalyzer.getPlayerTotalTimeWithBall
+                  case "dribble" => events = footballAnalyzer.getPlayerDribbleNumberAndWinRatio
+                  case "recovery" => events = footballAnalyzer.getPlayerBallRecoveryNumberAndRatio
+                  case "block" => events = footballAnalyzer.getPlayerBlockCountAndRatio
+                  case "fouls_commit" => events = footballAnalyzer.getPlayerFoulsCommited
+                  case "fouls_won" => events = footballAnalyzer.getPlayerFoulsWon
+                  case "position" => events = footballAnalyzer.getPlayersPositionsCount
+                  case _ => events = Seq(s"unknown stat: $stat").toDF("error")
+                }
+              } else {
+                stat match {
+                  case "all" => events = eventHolder.getDF
+                  case "players" => events = footballAnalyzer.getPlayersWithNumbersAndPositions
+                  case "subs" => events = footballAnalyzer.getAllSubstitution
+                  case "pass_acc" => events = footballAnalyzer.getPlayerPassNumberAndAccuracy(playerID)
+                  case "pass_info" => events = footballAnalyzer.getExactPlayerPassInformation(playerID)
+                  case "pass_localizations" => events = footballAnalyzer.getPlayerPassLocalizations(playerID)
+                  case "shot" => events = footballAnalyzer.getPlayerShotNumberAndAccuracy(playerID)
+                  case "shot_localizations" => events = footballAnalyzer.getPlayerShotLocalizations(playerID)
+                  case "possesion" => events = footballAnalyzer.getPlayerTotalTimeWithBall(playerID)
+                  case "dribble" => events = footballAnalyzer.getPlayerDribbleNumberAndWinRatio(playerID)
+                  case "recovery" => events = footballAnalyzer.getPlayerBallRecoveryNumberAndRatio(playerID)
+                  case "block" => events = footballAnalyzer.getPlayerBlockCountAndRatio(playerID)
+                  case "fouls_commit" => events = footballAnalyzer.getPlayerFoulsCommited(playerID)
+                  case "fouls_won" => events = footballAnalyzer.getPlayerFoulsWon(playerID)
+                  case "position" => events = footballAnalyzer.getPlayersPositionsCount(playerID)
+                  case _ => events = Seq(s"unknown stat: $stat").toDF("error")
+                }
               }
               val stringifiedJSON: String = DataFrameParser.DFtoJsonString(events)
               complete(HttpEntity(ContentTypes.`application/json`, stringifiedJSON))
@@ -82,7 +104,6 @@ object Server {
           }
         }
       }
-
     val bindingFuture = Http().newServerAt("localhost", 8080).bind(route)
     println(s"Server now online. Please navigate to http://localhost:8080\nPress RETURN to stop...")
     StdIn.readLine() // let it run until user presses return
@@ -91,3 +112,4 @@ object Server {
       .onComplete(_ => system.terminate()) // and shutdown when done
   }
 }
+
