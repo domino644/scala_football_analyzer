@@ -623,4 +623,5 @@ class FootballAnalyzer(val spark: SparkSession) {
       )
     playerPitchLocationDF
   }
+
 }
