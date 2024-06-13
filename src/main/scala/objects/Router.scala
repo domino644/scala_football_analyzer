@@ -63,6 +63,25 @@ object Router {
     }
   }
 
+  private def matchTeamEvents(teamID: Int, teamName: String, stat: String): DataFrame = {
+    var df: DataFrame = spark.emptyDataFrame
+    if (teamName == "") {
+      stat match {
+        case "all" => df = footballAnalyzer.getTeamAllMatchStats(teamID)
+        case "foul" => df = footballAnalyzer.getTeamExactFoulsStats(teamID)
+        case "pass" => df = footballAnalyzer.getTeamExactPassStats(teamID)
+        case "players" => df = footballAnalyzer.getTeamAllPlayers(teamID)
+      }
+    }else{
+      stat match {
+        case "all" => df = footballAnalyzer.getTeamAllMatchStats(teamName)
+        case "foul" => df = footballAnalyzer.getTeamExactFoulsStats(teamName)
+        case "pass" => df = footballAnalyzer.getTeamExactPassStats(teamName)
+        case "players" => df = footballAnalyzer.getTeamAllPlayers(teamName)
+      }
+    }
+    df
+  }
   private def matchEvents(playerID: Int, stat: String, holder: Holder): DataFrame = {
     var events: DataFrame = spark.emptyDataFrame
     if (playerID == -1) {
@@ -141,6 +160,23 @@ object Router {
     }
   }
 
+  private def getSeasonTeamRoute: Route = {
+    path("season"/"team") {
+      parameters("competitionID".as[Int], "seasonID".as[Int], "stat".as[String], "teamID".as[Int].?, "teamName".as[String].?){
+        (competitionID, seasonID, stat, teamIDOpt, teamNameOpt) => {
+          val teamName = teamNameOpt.getOrElse("")
+          val teamID = teamIDOpt.getOrElse(0)
+          seasonHolder.setParams(seasonID = seasonID, competitionID = competitionID)
+          footballAnalyzer.setGameDF(seasonHolder.getDF)
+          get {
+            val stringifiedJSON: String = DataFrameParser.DFtoJsonString(matchTeamEvents(teamID,teamName, stat))
+            complete(HttpEntity(ContentTypes.`application/json`, stringifiedJSON))
+          }
+        }
+      }
+    }
+  }
+
   def getRoutes: Route =
-    getHomeRoute ~ getCompetitionsRoute ~ getMatchesRoute ~ getEventsRoute ~ getSeasonRoute
+    getHomeRoute ~ getCompetitionsRoute ~ getMatchesRoute ~ getEventsRoute ~ getSeasonRoute ~ getSeasonTeamRoute
 }

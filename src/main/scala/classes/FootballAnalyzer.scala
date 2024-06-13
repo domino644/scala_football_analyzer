@@ -727,19 +727,17 @@ class FootballAnalyzer(val spark: SparkSession) {
     filledDF
   }
 
-  private def getTeamAllPlayers(teamName: String): Array[String] = {
+  def getTeamAllPlayers(teamName: String): DataFrame = {
     val selectedTeamPlayers = gameDF.select(col("player.name")).
       where(col("team.name") === teamName && col("player.name").isNotNull).
       distinct()
-      .collect().map(row => row.getString(0))
     selectedTeamPlayers
   }
 
-  private def getTeamAllPlayers(teamID: Int): Array[String] = {
-    val selectedTeamPlayers = gameDF.select(col("player.name")).
+  def getTeamAllPlayers(teamID: Int): DataFrame = {
+    val selectedTeamPlayers = gameDF.select(col("player.name"), col("player.id")).
       where(col("team.id") === teamID && col("player.name").isNotNull).
       distinct()
-      .collect().map(row => row.getString(0))
     selectedTeamPlayers
   }
 
