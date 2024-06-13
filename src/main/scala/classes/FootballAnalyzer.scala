@@ -5,8 +5,6 @@ import org.apache.spark.sql.functions._
 import org.apache.spark.sql.types.{NumericType, StringType, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, SparkSession}
 
-import scala.collection.mutable.ListBuffer
-
 class FootballAnalyzer(val spark: SparkSession) {
 
   import spark.implicits._
