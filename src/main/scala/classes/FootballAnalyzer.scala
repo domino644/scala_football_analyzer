@@ -624,7 +624,7 @@ class FootballAnalyzer(val spark: SparkSession) {
         playerPitchLocationDF
     }
 
-    def joinDF(join_elem:Seq[String], baseDF: DataFrame, dfs: DataFrame*): DataFrame = {
+    private def joinDF(join_elem:Seq[String], baseDF: DataFrame, dfs: DataFrame*): DataFrame = {
         val joinedDF = dfs.foldLeft(baseDF)((df1, df2) => df1.join(df2, join_elem, "outer"))
         val schema = joinedDF.schema
         val numericColumns = schema.fields.filter(_.dataType.isInstanceOf[NumericType]).map(_.name)
