@@ -10,7 +10,7 @@ abstract class Holder(spark: SparkSession) {
   protected var baseURL: String
 
   def initDF(): Unit = {
-    DF = DataFrameInitializer.initDFfromURL(spark, baseURL)
+    DF = DataFrameInitializer.initDFFromURL(spark, baseURL)
   }
 
   def getDF: DataFrame = DF
