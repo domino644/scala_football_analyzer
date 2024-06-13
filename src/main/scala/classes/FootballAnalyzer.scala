@@ -727,31 +727,6 @@ class FootballAnalyzer(val spark: SparkSession) {
     filledDF
   }
 
-
-  def getPlayerAllMatchStats(playerName: String): DataFrame = {
-
-    val playerPositionAndNumber = getPlayersWithNumbersAndPositions.where(col("player_name") === playerName)
-    val playerPassStats = getPlayerPassNumberAndAccuracy.where(col("player_name") === playerName).drop("team_name")
-    val playerShotStats = getPlayerShotNumberAndAccuracy.where(col("player_name") === playerName).drop("team_name")
-    val playerDribbleStats = getPlayerDribbleNumberAndWinRatio.where(col("player_name") === playerName).drop("team_name")
-    val playerRecoveryStats = getPlayerBallRecoveryNumberAndRatio.where(col("player_name") === playerName).drop("team_name")
-    val playerBlocks = getPlayerBlockCountAndRatio.where(col("player_name") === playerName).drop("team_name")
-    val playerTotalTimeWithBall = getPlayerTotalTimeWithBall.where(col("player_name") === playerName).drop("team_name")
-    val playerStats = joinDF(
-      Seq("player_name"),
-      playerPositionAndNumber,
-      playerPassStats,
-      playerShotStats,
-      playerDribbleStats,
-      playerRecoveryStats,
-      playerBlocks,
-      playerTotalTimeWithBall
-    )
-
-    playerStats
-
-  }
-
   private def getTeamAllPlayers(teamName: String): Array[String] = {
     val selectedTeamPlayers = gameDF.select(col("player.name")).
       where(col("team.name") === teamName && col("player.name").isNotNull).
@@ -796,31 +771,40 @@ class FootballAnalyzer(val spark: SparkSession) {
     totalFoulsStats
   }
 
-  def getTeamAllMatchStats(teamID: Int): DataFrame = {
-    val teamPlayers = getTeamAllPlayers(teamID)
 
-    val teamStats = ListBuffer[DataFrame]()
+  def getAllSeasonStats: DataFrame = {
+    val playerPositionAndNumber = getPlayersWithNumbersAndPositions
+    val playerPassStats = getPlayerPassNumberAndAccuracy
+    val playerShotStats = getPlayerShotNumberAndAccuracy
+    val playerDribbleStats = getPlayerDribbleNumberAndWinRatio
+    val playerRecoveryStats = getPlayerBallRecoveryNumberAndRatio
+    val playerBlocks = getPlayerBlockCountAndRatio
+    val playerTotalTimeWithBall = getPlayerTotalTimeWithBall
+    val playerStats = joinDF(
+      Seq("player_name", "team_name"),
+      playerPositionAndNumber,
+      playerPassStats,
+      playerShotStats,
+      playerDribbleStats,
+      playerRecoveryStats,
+      playerBlocks,
+      playerTotalTimeWithBall
+    )
 
-    for (player <- teamPlayers) {
-      teamStats += getPlayerAllMatchStats(player)
-    }
+    playerStats.orderBy(col("player_number"))
 
-    val finalDF = teamStats.reduce((df1, df2) => df1.unionByName(df2, allowMissingColumns = true))
-    finalDF.orderBy("player_number").show(truncate = false)
-    finalDF
   }
 
+
   def getTeamAllMatchStats(teamName: String): DataFrame = {
-    val teamPlayers = getTeamAllPlayers(teamName)
 
-    val teamStats = ListBuffer[DataFrame]()
+    val teamSeasonStats = getAllSeasonStats.filter(col("team_name") === teamName)
+    teamSeasonStats
+  }
 
-    for (player <- teamPlayers) {
-      teamStats += getPlayerAllMatchStats(player)
-    }
+  def getTeamAllMatchStats(teamID: Int): DataFrame = {
 
-    val finalDF = teamStats.reduce((df1, df2) => df1.unionByName(df2, allowMissingColumns = true))
-    finalDF.orderBy("player_number").show(truncate = false)
-    finalDF
+    val teamSeasonStats = getAllSeasonStats.filter(col("team_id") === teamID)
+    teamSeasonStats
   }
 }
