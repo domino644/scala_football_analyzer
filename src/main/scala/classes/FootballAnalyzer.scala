@@ -30,10 +30,11 @@ class FootballAnalyzer(val spark: SparkSession) {
 
   def getPlayersWithNumbersAndPositions: DataFrame = {
 
-    val selectedDF = gameDF.select($"team.name".as("Team name"), explode($"tactics.lineup").as("lineup"))
+    val selectedDF = gameDF.select($"team.name".as("team_name"), explode($"tactics.lineup").as("lineup"))
 
     val playerDF = selectedDF.select(
-      $"Team name",
+      $"team_name",
+      $"team.id".as("team_id"),
       $"lineup.player.id".as("player_id"),
       $"lineup.player.name".as("player_name"),
       $"lineup.position.name".as("player_position"),
@@ -41,9 +42,9 @@ class FootballAnalyzer(val spark: SparkSession) {
     ).distinct()
 
     val groupedDF = playerDF
-      .groupBy($"Team name", $"player_name", $"player_number", $"player_id")
+      .groupBy($"team_name", $"player_name", $"player_number", $"player_id")
       .agg(collect_list($"player_position").as("player_positions"))
-      .orderBy($"Team name", $"player_number")
+      .orderBy($"team_name", $"player_number")
 
     val formattedDF = groupedDF.withColumn("player_positions", concat_ws(", ", $"player_positions"))
 
@@ -52,8 +53,10 @@ class FootballAnalyzer(val spark: SparkSession) {
 
   def getAllSubstitution: DataFrame = {
     val selectedDF = gameDF.select(
-      $"team.name".as("Team_name"),
+      $"team.name".as("team_name"),
+      $"team.id".as("team_id"),
       $"player.name".as("player_out"),
+      $"player.id".as("player_id"),
       $"substitution.replacement.name".as("player_in"),
       $"minute".as("min"),
       $"second".as("sec"),
@@ -70,7 +73,7 @@ class FootballAnalyzer(val spark: SparkSession) {
       ).drop($"min", $"sec")
 
 
-    val sortedDF = timeFormattedDF.orderBy($"Team_name", $"substitution_time")
+    val sortedDF = timeFormattedDF.orderBy($"team_name", $"substitution_time")
 
     sortedDF
   }
@@ -81,6 +84,8 @@ class FootballAnalyzer(val spark: SparkSession) {
     val passEventLocalizationsDF = passEventsDF.select(
       col("player.name").as("player_name"),
       col("player.id").as("player_id"),
+      col("team.name").as("team_name"),
+      col("team.id").as("team_id"),
       col("location").as("start_location"),
       col("pass.end_location").as("end_location"),
       when(col("pass.outcome").isNull, "Completed").otherwise(col("pass.outcome.name")).as("outcome")
@@ -99,7 +104,9 @@ class FootballAnalyzer(val spark: SparkSession) {
 
     val passCountAndAccuracyDf = passEventsDf.groupBy(
         col("team.name").as("team_name"),
-        col("player.name").as("player_name")
+        col("team.id").as("team_id"),
+        col("player.name").as("player_name"),
+        col("player.id").as("player_id")
       )
       .agg(
         count("*").as("total_passes"),
@@ -208,6 +215,7 @@ class FootballAnalyzer(val spark: SparkSession) {
 
     val shotCountAndAccuracyDf = shotsEventsDF.groupBy(
         col("team.name").as("team_name"),
+        col("team.id").as("team_id"),
         col("player.name").as("player_name"),
         col("player.id").as("player_id")
       )
@@ -235,6 +243,7 @@ class FootballAnalyzer(val spark: SparkSession) {
 
     val shotCountAndAccuracyDf = shotsEventsDF.select(
       col("team.name").as("team_name"),
+      col("team.id").as("team_id"),
       col("player.id").as("player_id"),
       col("player.name").as("player_name"),
       col("location").as("start_location"),
@@ -256,6 +265,7 @@ class FootballAnalyzer(val spark: SparkSession) {
 
     val ballCarryTimeDF = carryEventsDF.groupBy(
         col("team.name").as("team_name"),
+        col("team.id").as("team_id"),
         col("player.name").as("player_name"),
         col("player.id").as("player_id")
       )
@@ -276,6 +286,7 @@ class FootballAnalyzer(val spark: SparkSession) {
 
     val dribbleCountAndRatio = dribbleEventsDF.groupBy(
         col("team.name").as("team_name"),
+        col("team.id").as("team_id"),
         col("player.name").as("player_name"),
         col("player.id").as("player_id")
       )
@@ -301,7 +312,9 @@ class FootballAnalyzer(val spark: SparkSession) {
 
     val recoveriesCountAndRatio = recoveriesEventsDF.groupBy(
         col("team.name").as("team_name"),
-        col("player.name").as("player_name")
+        col("player.name").as("player_name"),
+        col("player.id").as("player_id"),
+        col("team.id").as("team_id")
       )
       .agg(
         count(when(col("ball_recovery.recovery_failure").isNull, 1)).as("successful_ball_recoveries"),
@@ -350,6 +363,7 @@ class FootballAnalyzer(val spark: SparkSession) {
 
     val blockPerTypeCount = blocksEventsDF.groupBy(
       col("team.name").as("team_name"),
+      col("team.id").as("team_id"),
       col("player.name").as("player_name"),
       col("player.id").as("player_id")
     ).agg(aggExprs.head, aggExprs.tail: _*)
@@ -374,6 +388,7 @@ class FootballAnalyzer(val spark: SparkSession) {
 
     val selectedColumns = Seq(
       col("team_name"),
+      col("team_id"),
       col("player_id"),
       col("player_name"),
       col("total_blocks"),
@@ -533,6 +548,7 @@ class FootballAnalyzer(val spark: SparkSession) {
       col("team_name"),
       col("player_name"),
       col("player_id"),
+      col("team_id"),
       col("total_fouls_committed"),
       col("standard_fouls"),
       col("standard_foul_ratio")
@@ -622,7 +638,8 @@ class FootballAnalyzer(val spark: SparkSession) {
     val foulWonPerTypeCount = foulWonEventsDF.groupBy(
       col("team.name").as("team_name"),
       col("player.name").as("player_name"),
-      col("player.id").as("player_id")
+      col("player.id").as("player_id"),
+      col("team.id").as("team_id")
     ).agg(aggWonFoulExpression.head, aggWonFoulExpression.tail: _*)
 
     var withWonFoulsRatio = foulWonPerTypeCount
@@ -650,6 +667,7 @@ class FootballAnalyzer(val spark: SparkSession) {
       col("team_name"),
       col("player_name"),
       col("player_id"),
+      col("team_id"),
       col("total_fouls_won"),
       col("standard_fouls"),
       col("standard_foul_ratio")
@@ -682,6 +700,7 @@ class FootballAnalyzer(val spark: SparkSession) {
       col("team.name").as("team_name"),
       col("player.name").as("player_name"),
       col("player.id").as("player_id"),
+      col("team.id").as("team_id"),
       col("location")
     ).where(
       col("team_name").isNotNull &&
@@ -777,7 +796,7 @@ class FootballAnalyzer(val spark: SparkSession) {
     val playerBlocks = getPlayerBlockCountAndRatio
     val playerTotalTimeWithBall = getPlayerTotalTimeWithBall
     val playerStats = joinDF(
-      Seq("player_name", "team_name"),
+      Seq("player_name", "team_name", "team_id", "player_id"),
       playerPositionAndNumber,
       playerPassStats,
       playerShotStats,
