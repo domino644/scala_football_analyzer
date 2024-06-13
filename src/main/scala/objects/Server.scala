@@ -31,9 +31,12 @@ object Server {
         val df = dataLoader.getAllEventsDF
         val footballAnalyzer: FootballAnalyzer = new FootballAnalyzer(spark)
         footballAnalyzer.setGameDF(df)
-        val pass = footballAnalyzer.getPlayerPassNumberAndAccuracy.orderBy(col("total_passes").desc)
+        footballAnalyzer.getTeamExactPassStats("Barcelona")
+        footballAnalyzer.getTeamExactFoulsStats("Barcelona")
+        footballAnalyzer.getPlayerAllMatchStats("Jordi Alba Ramos")
+        footballAnalyzer.getTeamAllMatchStats("Barcelona")
 
-        pass.show(truncate = false)
+
 
         val route =
             path("") {
