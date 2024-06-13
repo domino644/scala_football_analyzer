@@ -29,14 +29,22 @@ object Server {
         val dataLoader:DataLoader = new DataLoader(spark, competitionID = 11, seasonID = 1)
 
         val df = dataLoader.getAllEventsDF
+
         val footballAnalyzer: FootballAnalyzer = new FootballAnalyzer(spark)
+
         footballAnalyzer.setGameDF(df)
-        footballAnalyzer.getTeamExactPassStats("Barcelona")
-        footballAnalyzer.getTeamExactFoulsStats("Barcelona")
-        footballAnalyzer.getPlayerAllMatchStats("Jordi Alba Ramos")
-        footballAnalyzer.getTeamAllMatchStats("Barcelona")
-
-
+        val barcaStats = footballAnalyzer.getTeamAllMatchStats("Barcelona")
+        val playerAllStats = footballAnalyzer.getPlayerAllMatchStats("Lionel Andrés Messi Cuccittini")
+        val exactFouls = footballAnalyzer.getTeamExactPassStats("Barcelona")
+        val pass = footballAnalyzer.getPlayerPassNumberAndAccuracy.orderBy(col("total_passes").desc)
+        val messi = footballAnalyzer.getPlayerAllMatchStats("Lionel Andrés Messi Cuccittini")
+        val fouls = footballAnalyzer.getTeamExactFoulsStats("Barcelona")
+        messi.show(truncate=false)
+        pass.show(truncate = false)
+        fouls.show(truncate=false)
+        exactFouls.show(truncate=false)
+        playerAllStats.show(truncate=false)
+        barcaStats.show(truncate=false)
 
         val route =
             path("") {

@@ -2,11 +2,12 @@ package agh.scala.footballanalyzer
 package classes
 
 import org.apache.spark.sql.{DataFrame, SparkSession}
-import org.apache.spark.sql.functions.{array, coalesce, col, collect_list, concat_ws, count, explode, expr, lit, round, sum, when}
+import org.apache.spark.sql.functions.{array, coalesce, col, collect_list, concat_ws, count, explode, expr, len, lit, round, sum, when}
 import org.apache.spark.sql.types.{NumericType, StringType, StructField, StructType}
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
+import scala.collection.parallel.CollectionConverters.ArrayIsParallelizable
 
 class FootballAnalyzer(val spark: SparkSession) {
 
@@ -638,34 +639,18 @@ class FootballAnalyzer(val spark: SparkSession) {
 
 
     def getPlayerAllMatchStats(playerName:String): DataFrame= {
-
-        val playerPositionAndNumber = getPlayersWithNumbersAndPositions.where(col("player_name") === playerName)
-        val playerPassStats = getPlayerPassNumberAndAccuracy.where(col("player_name") === playerName).drop("team_name")
-        val playerShotStats = getPlayerShotNumberAndAccuracy.where(col("player_name") === playerName).drop("team_name")
-        val playerDribbleStats = getPlayerDribbleNumberAndWinRatio.where(col("player_name") === playerName).drop("team_name")
-        val playerRecoveryStats =  getPlayerBallRecoveryNumberAndRatio.where(col("player_name") === playerName).drop("team_name")
-        val playerBlocks = getPlayerBlockCountAndRatio.where(col("player_name") === playerName).drop("team_name")
-        val playerTotalTimeWithBall = getPlayerTotalTimeWithBall.where(col("player_name") === playerName).drop("team_name")
-        val playerStats = joinDF(
-            Seq("player_name"),
-            playerPositionAndNumber,
-            playerPassStats,
-            playerShotStats,
-            playerDribbleStats,
-            playerRecoveryStats,
-            playerBlocks,
-            playerTotalTimeWithBall
-        )
-
+        val playerStats = getAllSeasonStats.filter(col("player_name") === playerName)
         playerStats
+
+
 
     }
 
-    private def getTeamAllPlayers(teamName:String):Array[String] = {
+    def getTeamAllPlayers(teamName:String):DataFrame = {
         val selectedTeamPlayers =  gameDF.select(col("player.name")).
             where(col("team.name") === teamName && col("player.name").isNotNull).
             distinct()
-            .collect().map(row => row.getString(0))
+
         selectedTeamPlayers
     }
 
@@ -685,19 +670,37 @@ class FootballAnalyzer(val spark: SparkSession) {
     }
 
 
+    def getAllSeasonStats: DataFrame = {
+        val playerPositionAndNumber = getPlayersWithNumbersAndPositions
+        val playerPassStats = getPlayerPassNumberAndAccuracy
+        val playerShotStats = getPlayerShotNumberAndAccuracy
+        val playerDribbleStats = getPlayerDribbleNumberAndWinRatio
+        val playerRecoveryStats =  getPlayerBallRecoveryNumberAndRatio
+        val playerBlocks = getPlayerBlockCountAndRatio
+        val playerTotalTimeWithBall = getPlayerTotalTimeWithBall
+        val playerStats = joinDF(
+            Seq("player_name", "team_name"),
+            playerPositionAndNumber,
+            playerPassStats,
+            playerShotStats,
+            playerDribbleStats,
+            playerRecoveryStats,
+            playerBlocks,
+            playerTotalTimeWithBall
+        )
+
+        playerStats.orderBy(col("player_number"))
+
+    }
+
+
 
     def getTeamAllMatchStats(teamName:String):DataFrame = {
-        val teamPlayers = getTeamAllPlayers(teamName)
 
-        val teamStats = ListBuffer[DataFrame]()
-
-        for(player <- teamPlayers){
-            teamStats += getPlayerAllMatchStats(player)
-        }
-
-        val finalDF = teamStats.reduce((df1, df2) => df1.unionByName(df2, allowMissingColumns = true))
-        finalDF.orderBy("player_number").show(truncate = false)
-        finalDF
+        val teamSeasonStats = getAllSeasonStats.filter(col("team_name") ===teamName)
+        teamSeasonStats
     }
+
+
 
 }
